@@ -1,16 +1,52 @@
 <template>
   <div class="cyber-cigarette-container">
+    <!-- 数据加载中提示 -->
+    <div v-if="!isDataLoaded" class="loading-overlay">
+      <div class="loading-spinner">
+        <div class="spinner-ring"></div>
+        <div class="loading-text">加载用户数据中...</div>
+      </div>
+    </div>
+    
     <!-- 背景动画层 -->
     <div class="background-animation">
       <div class="matrix-rain"></div>
       <div class="cyber-grid"></div>
     </div>
 
-    <!-- 主题切换按钮 -->
-    <div class="theme-switcher">
-      <button class="theme-btn" @click="toggleTheme" :class="{ 'active': currentTheme === 'cyber' }">
-        {{ currentTheme === 'cyber' ? '传统版' : '赛博版' }}
-      </button>
+    <!-- 左上角成就面板 -->
+    <div class="achievement-panel left-top-panel">
+      <div class="panel-header">
+        <h3>🏆 成就系统</h3>
+        <button @click="showAchievements" class="achievement-btn">
+          查看成就
+        </button>
+      </div>
+      <div class="achievement-summary">
+        <div class="achievement-score">总分: {{ achievementSystem.achievements.score }}</div>
+        <div class="achievement-count">已解锁: {{ achievementSystem.achievements.unlocked.length }}</div>
+      </div>
+    </div>
+
+    <!-- 右上角时间面板 -->
+    <div class="time-panel right-top-panel">
+      <div class="panel-header">
+        <h3>📅 时间系统</h3>
+        <button @click="advanceDay" class="advance-day-btn">
+          推进一天
+        </button>
+      </div>
+      <div class="time-content">
+        <div class="time-info">
+          <div class="current-day">第 {{ timeSystem.currentDay }} 天</div>
+          <div class="hospital-status" :class="{ 'needs-hospital': timeSystem.needsHospital }">
+            {{ timeSystem.needsHospital ? '⚠️ 需要就医' : '✅ 健康状况良好' }}
+          </div>
+          <div class="last-hospital">
+            上次就医: {{ timeSystem.lastHospitalDay > 0 ? `第${timeSystem.lastHospitalDay}天` : '从未就医' }}
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 标题 -->
@@ -20,15 +56,15 @@
     </div>
 
     <!-- 统计面板 -->
-    <div class="stats-dashboard" :class="{ 'traditional-dashboard': currentTheme === 'traditional' }">
-      <div class="stat-card" :class="{ 'traditional-card': currentTheme === 'traditional' }">
+    <div class="stats-dashboard">
+      <div class="stat-card">
         <div class="stat-icon">🚬</div>
-        <div class="stat-value" :class="{ 'neon-text': currentTheme === 'cyber', 'traditional-value': currentTheme === 'traditional' }">{{ stats.todaySmokes }}</div>
+        <div class="stat-value neon-text">{{ stats.todaySmokes }}</div>
         <div class="stat-label">今日吸烟</div>
       </div>
-      <div class="stat-card" :class="{ 'traditional-card': currentTheme === 'traditional' }">
+      <div class="stat-card">
         <div class="stat-icon">📊</div>
-        <div class="stat-value" :class="{ 'neon-text': currentTheme === 'cyber', 'traditional-value': currentTheme === 'traditional' }">{{ stats.totalSmokes }}</div>
+        <div class="stat-value neon-text">{{ stats.totalSmokes }}</div>
         <div class="stat-label">总计</div>
       </div>
     </div>
@@ -177,8 +213,8 @@
       
       <!-- 互动提示 -->
       <div class="interaction-hint" v-if="!isSmoking">
-        <div class="hint-text" :class="hintClass">{{ themeConfig.hintText }}</div>
-        <div class="click-indicator" :class="indicatorClass">
+        <div class="hint-text neon-text pulse">点击香烟开始模拟吸烟</div>
+        <div class="click-indicator cyber-indicator">
           <div class="ripple"></div>
           <div class="ripple"></div>
           <div class="ripple"></div>
@@ -188,20 +224,20 @@
     </div>
 
      <!-- 吸烟进度条 -->
-     <div class="smoking-progress" v-if="isSmoking" :class="progressClass">
-        <div class="progress-text">{{ themeConfig.progressText }}: {{ Math.round(smokingProgress) }}%</div>
-        <div class="progress-time">{{ themeConfig.timeRemaining }}: {{ timeRemaining }}秒</div>
+     <div class="smoking-progress cyber-progress" v-if="isSmoking">
+        <div class="progress-text">吸烟进度: {{ Math.round(smokingProgress) }}%</div>
+        <div class="progress-time">剩余时间: {{ timeRemaining }}秒</div>
       </div>
 
     <!-- 控制面板 -->
     <div class="control-panel">
-      <button class="control-button primary" :class="buttonClass" @click="smoke" :disabled="isSmoking">
-        <span class="button-text">{{ isSmoking ? themeConfig.smokingText : themeConfig.startText }}</span>
-        <div class="button-glow" v-if="currentTheme === 'cyber'"></div>
+      <button class="control-button primary cyber-button" @click="smoke" :disabled="isSmoking">
+        <span class="button-text">{{ isSmoking ? '吸烟中...' : '开始吸烟' }}</span>
+        <div class="button-glow"></div>
       </button>
-      <button class="control-button secondary" :class="buttonClass" @click="resetStats">
-        <span class="button-text">{{ themeConfig.resetText }}</span>
-        <div class="button-glow" v-if="currentTheme === 'cyber'"></div>
+      <button class="control-button secondary cyber-button" @click="resetStats">
+        <span class="button-text">重置统计</span>
+        <div class="button-glow"></div>
       </button>
     </div>
 
@@ -219,15 +255,100 @@
           <span>工作中... {{ economy.workProgress }}%</span>
         </div>
         <button @click="startWork" 
-                :disabled="economy.isWorking"
+                :disabled="economy.isWorking || shouldGoToHospital()"
                 class="work-btn">
-          {{ economy.isWorking ? '工作中...' : '开始工作' }}
+          {{ economy.isWorking ? '工作中...' : (shouldGoToHospital() ? '健康太差，无法工作' : '开始工作') }}
         </button>
       </div>
     </div>
 
+
+
+    <!-- 右下角医院 -->
+    <div class="hospital-corner">
+      <button class="corner-hospital-btn" @click="toggleHospital" :disabled="isDead">
+        <span class="hospital-icon">🏥</span>
+        <span class="hospital-text">医院</span>
+        <span class="hospital-cost">¥200</span>
+      </button>
+      
+      <!-- 医院面板 -->
+      <div class="hospital-panel" v-if="hospitalSystem.isHospitalOpen">
+        <div class="hospital-header">
+          <h3>🏥 医院治疗</h3>
+          <button @click="toggleHospital" class="close-btn">×</button>
+        </div>
+        <div class="hospital-content">
+          <div class="hospital-tabs">
+            <button class="tab-btn" :class="{ active: hospitalTab === 'treatment' }" @click="hospitalTab = 'treatment'">治疗服务</button>
+            <button class="tab-btn" :class="{ active: hospitalTab === 'volunteer' }" @click="hospitalTab = 'volunteer'">义工服务</button>
+          </div>
+          
+          <!-- 治疗服务选项卡 -->
+          <div v-if="hospitalTab === 'treatment'">
+            <div class="hospital-info">
+              <div class="treatment-cost">治疗费用: ¥200</div>
+              <div class="hospital-visits">已就医: {{ hospitalSystem.hospitalVisits }}次</div>
+            </div>
+            <div class="hospital-services">
+              <div class="service-item">
+                <span class="service-icon">🫁</span>
+                <span class="service-text">肺部治疗 +30%</span>
+              </div>
+              <div class="service-item">
+                <span class="service-icon">❤️</span>
+                <span class="service-text">心脏治疗 +30%</span>
+              </div>
+              <div class="service-item">
+                <span class="service-icon">🛡️</span>
+                <span class="service-text">免疫力提升 +35%</span>
+              </div>
+            </div>
+            <button @click="visitHospital" 
+                    :disabled="economy.money < 200"
+                    class="hospital-treatment-btn">
+              {{ economy.money < 200 ? '金钱不足' : '接受治疗' }}
+            </button>
+          </div>
+          
+          <!-- 义工服务选项卡 -->
+          <div v-if="hospitalTab === 'volunteer'">
+            <div class="volunteer-info">
+              <div class="volunteer-description">无报酬 | 提升健康</div>
+              <div class="volunteer-hours">义工时间: {{ hospitalSystem.volunteerHours }}小时</div>
+            </div>
+            <div class="volunteer-services">
+              <div class="service-item">
+                <span class="service-icon">🫁</span>
+                <span class="service-text">肺部健康 +15%</span>
+              </div>
+              <div class="service-item">
+                <span class="service-icon">❤️</span>
+                <span class="service-text">心脏健康 +15%</span>
+              </div>
+              <div class="service-item">
+                <span class="service-icon">🛡️</span>
+                <span class="service-text">免疫力 +20%</span>
+              </div>
+            </div>
+            <div class="volunteer-progress" v-if="hospitalSystem.isVolunteerWorking">
+              <div class="progress-bar">
+                <div class="progress-fill" :style="{ width: hospitalSystem.volunteerProgress + '%' }"></div>
+              </div>
+              <span>义工服务中... {{ hospitalSystem.volunteerProgress }}%</span>
+            </div>
+            <button @click="startVolunteer" 
+                    :disabled="hospitalSystem.isVolunteerWorking || shouldGoToHospital()"
+                    class="volunteer-btn">
+              {{ hospitalSystem.isVolunteerWorking ? '义工服务中...' : (shouldGoToHospital() ? '健康太差，先治疗' : '开始义工') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 右下角捐赠按钮 -->
-    <div class="donation-corner">
+    <div class="donation-corner donation-school">
       <button class="corner-donation-btn" @click="donate" :disabled="economy.money < 100 || isDead">
         <span class="donation-icon">🏫</span>
         <span class="donation-text">捐赠小学</span>
@@ -307,11 +428,75 @@
       </div>
     </div>
 
+    <!-- 成就系统弹窗 -->
+    <div class="achievement-overlay" v-if="achievementSystem.showAchievementModal">
+      <div class="achievement-modal">
+        <div class="achievement-content">
+          <div class="achievement-header">
+            <h2 class="achievement-title">🏆 成就系统</h2>
+            <button class="close-achievement-btn" @click="closeAchievements">×</button>
+          </div>
+          
+          <div class="achievement-summary">
+            <div class="achievement-stats">
+              <div class="stat-item">
+                <span class="stat-label">总分</span>
+                <span class="stat-value">{{ achievementSystem.achievements.score }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">已解锁</span>
+                <span class="stat-value">{{ achievementSystem.achievements.unlocked.length }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">总数</span>
+                <span class="stat-value">{{ Object.keys(achievementSystem.achievements.all).length }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 新获得的成就 -->
+          <div class="new-achievements" v-if="achievementSystem.newAchievements.length > 0">
+            <h3>🎉 新获得的成就</h3>
+            <div class="new-achievement-list">
+              <div class="achievement-item new" v-for="id in achievementSystem.newAchievements" :key="id">
+                <div class="achievement-icon">🏆</div>
+                <div class="achievement-info">
+                  <div class="achievement-name">{{ achievementSystem.achievements.all[id] }}</div>
+                  <div class="achievement-reward">+10 分</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 所有成就列表 -->
+          <div class="achievements-list">
+            <h3>所有成就</h3>
+            <div class="achievement-categories">
+              <div class="achievement-item" 
+                   v-for="(description, id) in achievementSystem.achievements.all" 
+                   :key="id"
+                   :class="{ 'unlocked': achievementSystem.achievements.unlocked.includes(id) }">
+                <div class="achievement-icon">
+                  {{ achievementSystem.achievements.unlocked.includes(id) ? '🏆' : '🔒' }}
+                </div>
+                <div class="achievement-info">
+                  <div class="achievement-name">{{ description }}</div>
+                  <div class="achievement-status">
+                    {{ achievementSystem.achievements.unlocked.includes(id) ? '已解锁' : '未解锁' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import axios from 'axios'
 
 export default {
@@ -321,7 +506,7 @@ export default {
     const smokeParticles = ref([])
     const smokeStreams = ref([])
     const smokeWisps = ref([])
-    const currentTheme = ref('cyber')
+
     const ashProgress = ref(0) // 灰烬进度 0-100%
     const smokingProgress = ref(0)
     const timeRemaining = ref(0)
@@ -331,10 +516,87 @@ export default {
     const isDonating = ref(false)
     const showReflectionModal = ref(false)
     const showDonationModal = ref(false)
+    
+    // 用户会话管理
+    const sessionId = ref('')
+    const isDataLoaded = ref(false)
+    const lastSaveTime = ref(0)
+    
+    // 主题系统
+    const currentTheme = ref('cyber')
+    
+    // 主题配置
+    const themeConfig = computed(() => ({
+      title: currentTheme.value === 'cyber' ? '赛博戒烟模拟器' : '戒烟模拟器',
+      subtitle: currentTheme.value === 'cyber' ? '未来科技体验' : '健康生活从戒烟开始'
+    }))
+    
+    // 样式类
+    const titleClass = computed(() => ({
+      'cyber-title': currentTheme.value === 'cyber',
+      'traditional-title': currentTheme.value === 'traditional'
+    }))
+    
+    const subtitleClass = computed(() => ({
+      'cyber-subtitle': currentTheme.value === 'cyber',
+      'traditional-subtitle': currentTheme.value === 'traditional'
+    }))
+    
+    const hintClass = computed(() => ({
+      'neon-text pulse': currentTheme.value === 'cyber',
+      'traditional-hint': currentTheme.value === 'traditional'
+    }))
+    
+    const indicatorClass = computed(() => ({
+      'cyber-indicator': currentTheme.value === 'cyber',
+      'traditional-indicator': currentTheme.value === 'traditional'
+    }))
+    
+    const buttonClass = computed(() => ({
+      'cyber-button': currentTheme.value === 'cyber',
+      'traditional-button': currentTheme.value === 'traditional'
+    }))
+    
+    const progressClass = computed(() => ({
+      'cyber-progress': currentTheme.value === 'cyber',
+      'traditional-progress': currentTheme.value === 'traditional'
+    }))
+    
+    // 时间系统
+    const timeSystem = reactive({
+      currentDay: 1,
+      lastHospitalDay: 0,
+      needsHospital: false
+    })
+    
+    // 医院系统
+    const hospitalSystem = reactive({
+      hospitalVisits: 0,
+      volunteerHours: 0,
+      isHospitalOpen: false,
+      isVolunteerWorking: false,
+      volunteerProgress: 0
+    })
+    
+    // 医院选项卡
+    const hospitalTab = ref('treatment')
+    
+    // 成就系统
+    const achievementSystem = reactive({
+      achievements: {
+        unlocked: [],
+        all: {},
+        score: 0
+      },
+      showAchievementModal: false,
+      newAchievements: [] // 新获得的成就
+    })
 
     const stats = reactive({
       todaySmokes: 0,
-      totalSmokes: 0
+      totalSmokes: 0,
+      totalDonations: 0,
+      totalWorkDays: 0
     })
 
     // 经济系统
@@ -377,67 +639,7 @@ export default {
     let wispInterval = null
     let progressInterval = null
     let animationFrame = null
-    let smokingDuration = 15 // 吸烟总时长（秒）
-
-    // 主题配置
-    const themes = {
-      cyber: {
-        title: '赛博戒烟模拟器',
-        subtitle: '未来科技体验',
-        hintText: '点击香烟开始模拟吸烟',
-        startText: '开始吸烟',
-        smokingText: '吸烟中...',
-        resetText: '重置统计',
-        progressText: '吸烟进度',
-        timeRemaining: '剩余时间'
-      },
-      traditional: {
-        title: '戒烟助手',
-        subtitle: '健康生活从这里开始',
-        hintText: '点击香烟体验吸烟感受',
-        startText: '体验吸烟',
-        smokingText: '体验中...',
-        resetText: '清空记录',
-        progressText: '体验进度',
-        timeRemaining: '剩余时间'
-      }
-    }
-
-    // 当前主题配置
-    const themeConfig = computed(() => themes[currentTheme.value])
-
-    // 样式类计算
-    const titleClass = computed(() => ({
-      'neon-text glitch': currentTheme.value === 'cyber',
-      'traditional-title': currentTheme.value === 'traditional'
-    }))
-
-    const subtitleClass = computed(() => ({
-      'typing-effect': currentTheme.value === 'cyber',
-      'traditional-subtitle': currentTheme.value === 'traditional'
-    }))
-
-    const hintClass = computed(() => ({
-      'neon-text pulse': currentTheme.value === 'cyber',
-      'traditional-hint': currentTheme.value === 'traditional'
-    }))
-
-    const indicatorClass = computed(() => ({
-      'cyber-indicator': currentTheme.value === 'cyber',
-      'traditional-indicator': currentTheme.value === 'traditional'
-    }))
-
-    const buttonClass = computed(() => ({
-      'cyber-button': currentTheme.value === 'cyber',
-      'traditional-button': currentTheme.value === 'traditional'
-    }))
-
-    const progressClass = computed(() => ({
-      'cyber-progress': currentTheme.value === 'cyber',
-      'traditional-progress': currentTheme.value === 'traditional'
-    }))
-
-
+    let smokingDuration = 5 // 吸烟总时长（秒）
 
     // 主题切换函数
     const toggleTheme = () => {
@@ -448,6 +650,144 @@ export default {
     // 商店功能
     const toggleShop = () => {
       shop.isOpen = !shop.isOpen
+    }
+    
+    // 医院功能
+    const toggleHospital = () => {
+      hospitalSystem.isHospitalOpen = !hospitalSystem.isHospitalOpen
+    }
+    
+    // 就医治疗
+    const visitHospital = async () => {
+      if (economy.money < 200) {
+        alert('您的金钱不足，无法支付医疗费用！需要200元。')
+        return
+      }
+      
+      try {
+        const response = await axios.post('/api/userdata/hospital/visit', null, {
+          params: { sessionId: sessionId.value }
+        })
+        
+        // 更新数据
+        economy.money = response.data.money
+        health.lungHealth = response.data.lungHealth
+        health.heartHealth = response.data.heartHealth
+        health.liverHealth = response.data.liverHealth
+        health.immunity = response.data.immunity
+        health.lifeExpectancy = response.data.lifeExpectancy
+        hospitalSystem.hospitalVisits = response.data.hospitalVisits
+        timeSystem.lastHospitalDay = response.data.lastHospitalDay
+        timeSystem.needsHospital = response.data.needsHospital
+        
+        alert('治疗成功！您的健康状况得到了改善。')
+        checkForNewAchievements()
+      } catch (error) {
+        console.error('医院治疗失败:', error)
+        alert('治疗失败，请稍后重试。')
+      }
+    }
+    
+    // 医院义工
+    const startVolunteer = async () => {
+      if (hospitalSystem.isVolunteerWorking) return
+      
+      if (shouldGoToHospital()) {
+        alert('您的健康状况太差，无法进行义工服务，请先接受治疗！')
+        return
+      }
+      
+      hospitalSystem.isVolunteerWorking = true
+      hospitalSystem.volunteerProgress = 0
+      
+      const volunteerInterval = setInterval(async () => {
+        hospitalSystem.volunteerProgress += 2
+        
+        if (hospitalSystem.volunteerProgress >= 100) {
+          hospitalSystem.isVolunteerWorking = false
+          hospitalSystem.volunteerProgress = 0
+          clearInterval(volunteerInterval)
+          
+          try {
+            const response = await axios.post('/api/userdata/hospital/volunteer', null, {
+              params: { sessionId: sessionId.value }
+            })
+            
+            // 更新数据
+            health.lungHealth = response.data.lungHealth
+            health.heartHealth = response.data.heartHealth
+            health.immunity = response.data.immunity
+            health.lifeExpectancy = response.data.lifeExpectancy
+            hospitalSystem.volunteerHours = response.data.volunteerHours
+            
+            alert('义工服务完成！您的健康得到了改善，同时为社会做出了贡献。')
+            checkForNewAchievements()
+          } catch (error) {
+            console.error('义工服务失败:', error)
+            alert('义工服务失败，请稍后重试。')
+          }
+        }
+      }, 100) // 5秒完成一次义工服务
+    }
+    
+    // 检查是否需要去医院
+    const shouldGoToHospital = () => {
+      return health.lungHealth < 30 || health.heartHealth < 30 || health.liverHealth < 30 || health.immunity < 20
+    }
+    
+    // 推进时间
+    const advanceDay = async () => {
+      try {
+        const response = await axios.post('/api/userdata/advance-day', null, {
+          params: { sessionId: sessionId.value }
+        })
+        
+        timeSystem.currentDay = response.data.currentDay
+        timeSystem.needsHospital = response.data.needsHospital
+        
+        // 更新健康数据
+        health.lungHealth = response.data.lungHealth
+        health.heartHealth = response.data.heartHealth
+        health.lifeExpectancy = response.data.lifeExpectancy
+        
+        checkForNewAchievements()
+      } catch (error) {
+        console.error('推进时间失败:', error)
+      }
+    }
+    
+    // 检查新成就
+    const checkForNewAchievements = async () => {
+      try {
+        const response = await axios.get('/api/userdata/achievements', {
+          params: { sessionId: sessionId.value }
+        })
+        
+        achievementSystem.achievements = response.data
+        
+        // 检查是否有新成就
+        const newUnlocked = response.data.unlocked.filter(id => 
+          !achievementSystem.achievements.unlocked.includes(id)
+        )
+        
+        if (newUnlocked.length > 0) {
+          achievementSystem.newAchievements = newUnlocked
+          achievementSystem.showAchievementModal = true
+        }
+      } catch (error) {
+        console.error('获取成就失败:', error)
+      }
+    }
+    
+    // 显示成就面板
+    const showAchievements = () => {
+      achievementSystem.showAchievementModal = true
+    }
+    
+    // 关闭成就面板
+    const closeAchievements = () => {
+      achievementSystem.showAchievementModal = false
+      achievementSystem.newAchievements = []
     }
 
     const buyItem = (item) => {
@@ -469,6 +809,12 @@ export default {
     const startWork = () => {
       if (economy.isWorking || isDead.value) return
       
+      // 检查健康状况
+      if (shouldGoToHospital()) {
+        alert('您的健康状况太差，无法工作！请先去医院治疗。')
+        return
+      }
+      
       economy.isWorking = true
       economy.workProgress = 0
       
@@ -481,6 +827,9 @@ export default {
           economy.workProgress = 0
           clearInterval(workInterval)
           
+          // 更新工作统计
+          stats.totalWorkDays += 1
+          
           // 打工会损害健康和寿命
           const workDamage = Math.random() * 2 + 1 // 1-3点伤害
           health.lungHealth = Math.max(0, health.lungHealth - workDamage * 0.5)
@@ -491,6 +840,9 @@ export default {
           
           // 检查是否死亡
           checkDeath()
+          
+          // 检查成就
+          checkForNewAchievements()
         }
       }, 100) // 5秒完成一次打工
     }
@@ -512,6 +864,9 @@ export default {
       
       // 检查是否死亡
       checkDeath()
+      
+      // 检查吸烟相关成就
+      checkForNewAchievements()
     }
 
     // 实时健康损害（吸烟过程中持续损害）
@@ -611,12 +966,18 @@ export default {
       economy.money -= 100
       isDonating.value = true
       
+      // 更新捐赠统计
+      stats.totalDonations += 1
+      
       // 捐赠会恢复部分健康和寿命
       health.lungHealth = Math.min(100, health.lungHealth + 5)
       health.heartHealth = Math.min(100, health.heartHealth + 5)
       health.liverHealth = Math.min(100, health.liverHealth + 3)
       health.immunity = Math.min(100, health.immunity + 7)
       health.lifeExpectancy = Math.min(85, health.lifeExpectancy + 2)
+      
+      // 检查捐赠相关成就
+      checkForNewAchievements()
       
       // 显示捐赠小学弹窗
       showDonationModal.value = true
@@ -633,30 +994,58 @@ export default {
     }
     
     // 重新开始生命
-    const restartLife = () => {
-      // 重置所有健康参数
-      health.lungHealth = 100
-      health.heartHealth = 100
-      health.liverHealth = 100
-      health.bloodPressure = 120
-      health.oxygenLevel = 98
-      health.immunity = 100
-      health.lifeExpectancy = 80
-      health.smokingDamage = 0
-      
-      // 重置经济状态
-      economy.money = 100
-      economy.cigaretteStock = 0
-      economy.isWorking = false
-      economy.workProgress = 0
-      
-      // 重置统计
-      stats.todaySmokes = 0
-      stats.totalSmokes = 0
-      
-      // 重置死亡状态
-      isDead.value = false
-      showReflectionModal.value = false
+    const restartLife = async () => {
+      try {
+        // 调用后端重置接口
+        await resetUserDataToServer()
+        
+        // 重置死亡状态
+        showReflectionModal.value = false
+        
+        console.log('游戏重新开始')
+      } catch (error) {
+        console.error('重新开始失败:', error)
+        // 如果后端失败，使用本地重置
+        health.lungHealth = 100
+        health.heartHealth = 100
+        health.liverHealth = 100
+        health.bloodPressure = 120
+        health.oxygenLevel = 98
+        health.immunity = 100
+        health.lifeExpectancy = 80
+        health.smokingDamage = 0
+        
+        economy.money = 100
+        economy.cigaretteStock = 0
+        economy.isWorking = false
+        economy.workProgress = 0
+        
+        stats.todaySmokes = 0
+        stats.totalSmokes = 0
+        stats.totalDonations = 0
+        stats.totalWorkDays = 0
+        
+        // 重置时间系统
+        timeSystem.currentDay = 1
+        timeSystem.lastHospitalDay = 0
+        timeSystem.needsHospital = false
+        
+        // 重置医院系统
+        hospitalSystem.hospitalVisits = 0
+        hospitalSystem.volunteerHours = 0
+        hospitalSystem.isHospitalOpen = false
+        hospitalSystem.isVolunteerWorking = false
+        hospitalSystem.volunteerProgress = 0
+        
+        // 重置成就系统
+        achievementSystem.achievements.score = 0
+        achievementSystem.achievements.unlocked = []
+        achievementSystem.showAchievementModal = false
+        achievementSystem.newAchievements = []
+        
+        isDead.value = false
+        showReflectionModal.value = false
+      }
     }
     
     // 显示反思
@@ -667,6 +1056,154 @@ export default {
     // 关闭反思
     const closeReflection = () => {
       showReflectionModal.value = false
+    }
+    
+    // 数据持久化功能
+    // 获取Session ID
+    const getSessionId = () => {
+      let storedSessionId = localStorage.getItem('smokingSimulatorSessionId')
+      if (!storedSessionId) {
+        storedSessionId = generateUUID()
+        localStorage.setItem('smokingSimulatorSessionId', storedSessionId)
+      }
+      return storedSessionId
+    }
+    
+    // 生成UUID
+    const generateUUID = () => {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0
+        const v = c == 'x' ? r : (r & 0x3 | 0x8)
+        return v.toString(16)
+      })
+    }
+    
+    // 从后端加载用户数据
+    const loadUserData = async () => {
+      try {
+        const response = await axios.get('/api/user/data', {
+          params: { sessionId: sessionId.value }
+        })
+        
+        const userData = response.data
+        
+        // 更新健康数据
+        health.lungHealth = userData.lungHealth
+        health.heartHealth = userData.heartHealth
+        health.liverHealth = userData.liverHealth
+        health.bloodPressure = userData.bloodPressure
+        health.oxygenLevel = userData.oxygenLevel
+        health.immunity = userData.immunity
+        health.lifeExpectancy = userData.lifeExpectancy
+        health.smokingDamage = userData.smokingDamage
+        
+        // 更新经济数据
+        economy.money = userData.money
+        economy.cigaretteStock = userData.cigaretteStock
+        economy.workPay = userData.workPay
+        economy.isWorking = userData.isWorking
+        economy.workProgress = userData.workProgress
+        
+        // 更新统计数据
+        stats.todaySmokes = userData.todaySmokes
+        stats.totalSmokes = userData.totalSmokes
+        stats.totalDonations = userData.totalDonations || 0
+        stats.totalWorkDays = userData.totalWorkDays || 0
+        
+        // 更新状态数据
+        isDead.value = userData.isDead
+        currentTheme.value = userData.currentTheme
+        
+        // 更新时间系统
+        timeSystem.currentDay = userData.currentDay || 1
+        timeSystem.lastHospitalDay = userData.lastHospitalDay || 0
+        timeSystem.needsHospital = userData.needsHospital || false
+        
+        // 更新医院系统
+        hospitalSystem.hospitalVisits = userData.hospitalVisits || 0
+        hospitalSystem.volunteerHours = userData.volunteerHours || 0
+        
+        // 更新成就系统
+        achievementSystem.achievements.score = userData.achievementScore || 0
+        achievementSystem.achievements.unlocked = userData.unlockedAchievements ? userData.unlockedAchievements.split(',').filter(id => id) : []
+        
+        // 加载成就数据
+        checkForNewAchievements()
+        
+        isDataLoaded.value = true
+        console.log('用户数据加载成功')
+      } catch (error) {
+        console.error('加载用户数据失败:', error)
+        isDataLoaded.value = true
+      }
+    }
+    
+    // 保存用户数据到后端
+    const saveUserData = async () => {
+      if (!isDataLoaded.value) return
+      
+      try {
+        const userData = {
+          sessionId: sessionId.value,
+          // 健康数据
+          lungHealth: health.lungHealth,
+          heartHealth: health.heartHealth,
+          liverHealth: health.liverHealth,
+          bloodPressure: health.bloodPressure,
+          oxygenLevel: health.oxygenLevel,
+          immunity: health.immunity,
+          lifeExpectancy: health.lifeExpectancy,
+          smokingDamage: health.smokingDamage,
+          // 经济数据
+          money: economy.money,
+          cigaretteStock: economy.cigaretteStock,
+          workPay: economy.workPay,
+          isWorking: economy.isWorking,
+          workProgress: economy.workProgress,
+          // 统计数据
+          todaySmokes: stats.todaySmokes,
+          totalSmokes: stats.totalSmokes,
+          totalDonations: stats.totalDonations,
+          totalWorkDays: stats.totalWorkDays,
+          // 状态数据
+          isDead: isDead.value,
+          currentTheme: currentTheme.value,
+          // 时间系统
+          currentDay: timeSystem.currentDay,
+          lastHospitalDay: timeSystem.lastHospitalDay,
+          needsHospital: timeSystem.needsHospital,
+          // 医院系统
+          hospitalVisits: hospitalSystem.hospitalVisits,
+          volunteerHours: hospitalSystem.volunteerHours,
+          // 成就系统
+          achievementScore: achievementSystem.achievements.score,
+          unlockedAchievements: achievementSystem.achievements.unlocked.join(',')
+        }
+        
+        await axios.put('/api/user/update', userData, {
+          params: { sessionId: sessionId.value }
+        })
+        
+        lastSaveTime.value = Date.now()
+        console.log('用户数据保存成功')
+      } catch (error) {
+        console.error('保存用户数据失败:', error)
+      }
+    }
+    
+    // 重置用户数据
+    const resetUserDataToServer = async () => {
+      try {
+        await axios.post('/api/user/reset', {}, {
+          params: { sessionId: sessionId.value }
+        })
+        
+        // 重新加载数据
+        await loadUserData()
+        console.log('用户数据重置成功')
+      } catch (error) {
+        console.error('重置用户数据失败:', error)
+      }
     }
 
     // 开始吸烟
@@ -684,6 +1221,10 @@ export default {
       
       // 影响健康
       updateHealth()
+      
+      // 更新统计数据
+      stats.todaySmokes += 1
+      stats.totalSmokes += 1
       
       // 开始持续健康损害
       startHealthDamage()
@@ -790,6 +1331,9 @@ export default {
           clearInterval(progressInterval)
         }
         loadStats()
+        
+        // 检查成就
+        checkForNewAchievements()
       }, smokingDuration * 1000)
     }
 
@@ -810,11 +1354,36 @@ export default {
       stats.totalSmokes = 0
     }
 
-    onMounted(() => {
+    // 初始化数据
+    onMounted(async () => {
+      // 获取Session ID
+      sessionId.value = getSessionId()
+      
+      // 加载用户数据
+      await loadUserData()
+      
+      // 设置自动保存（每30秒）
+      setInterval(() => {
+        saveUserData()
+      }, 30000)
+      
+      // 加载统计
       loadStats()
     })
+    
+    // 监听数据变化，延迟保存
+    watch([health, economy, stats, isDead, currentTheme], () => {
+      if (isDataLoaded.value) {
+        // 防抖：避免频繁保存
+        clearTimeout(window.saveTimeout)
+        window.saveTimeout = setTimeout(() => {
+          saveUserData()
+        }, 2000)
+      }
+    }, { deep: true })
 
     onUnmounted(() => {
+      // 清理定时器
       if (smokeInterval) {
         clearInterval(smokeInterval)
       }
@@ -824,10 +1393,15 @@ export default {
       if (wispInterval) {
         clearInterval(wispInterval)
       }
-
       if (animationFrame) {
         cancelAnimationFrame(animationFrame)
       }
+      if (window.saveTimeout) {
+        clearTimeout(window.saveTimeout)
+      }
+      
+      // 页面关闭前保存数据
+      saveUserData()
     })
 
     return {
@@ -842,9 +1416,17 @@ export default {
       isDonating,
       showReflectionModal,
       showDonationModal,
+      sessionId,
+      isDataLoaded,
       shop,
       currentTheme,
       themeConfig,
+      titleClass,
+      subtitleClass,
+      hintClass,
+      indicatorClass,
+      buttonClass,
+      progressClass,
       ashProgress,
       smokingProgress,
       timeRemaining,
@@ -865,7 +1447,27 @@ export default {
       restartLife,
       showReflection,
       closeReflection,
-      closeDonationModal
+      closeDonationModal,
+      saveUserData,
+      loadUserData,
+      
+      // 时间系统
+      timeSystem,
+      advanceDay,
+      
+      // 医院系统
+      hospitalSystem,
+      hospitalTab,
+      toggleHospital,
+      visitHospital,
+      startVolunteer,
+      shouldGoToHospital,
+      
+      // 成就系统
+      achievementSystem,
+      showAchievements,
+      closeAchievements,
+      checkForNewAchievements
     }
   }
 }
@@ -903,129 +1505,6 @@ export default {
   background: linear-gradient(45deg, #00ffff, #ff00ff);
   color: #000;
   box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
-}
-
-/* 传统主题样式 */
-:global(.theme-traditional) {
-  background: linear-gradient(135deg, #f9f7f4 0%, #f0ede8 50%, #e8e2d7 100%);
-  color: #2d2d2d;
-}
-
-:global(.theme-traditional) .cyber-cigarette-container {
-  background: linear-gradient(135deg, #f9f7f4 0%, #f0ede8 50%, #e8e2d7 100%);
-  color: #2d2d2d;
-  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
-}
-
-:global(.theme-traditional) .theme-btn {
-  background: rgba(139, 69, 19, 0.15);
-  border: 2px solid #8b4513;
-  color: #8b4513;
-  font-weight: 600;
-}
-
-:global(.theme-traditional) .theme-btn:hover {
-  background: rgba(139, 69, 19, 0.3);
-  box-shadow: 0 0 20px rgba(139, 69, 19, 0.4);
-}
-
-/* 传统风格标题 */
-.traditional-title {
-  color: #2d2d2d !important;
-  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
-  font-size: 3.5rem;
-  font-weight: 700;
-  text-shadow: 2px 2px 6px rgba(139, 69, 19, 0.3);
-  margin-bottom: 20px;
-}
-
-.traditional-subtitle {
-  color: #8b4513 !important;
-  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
-  font-size: 1.4rem;
-  font-weight: 500;
-  text-shadow: 1px 1px 3px rgba(139, 69, 19, 0.2);
-  margin-bottom: 10px;
-}
-
-/* 传统风格统计面板 */
-.traditional-dashboard {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border: 2px solid #8b4513 !important;
-  border-radius: 15px;
-  box-shadow: 0 8px 25px rgba(139, 69, 19, 0.2);
-}
-
-.traditional-card {
-  background: rgba(255, 255, 255, 0.9) !important;
-  border: 2px solid #cd853f !important;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(139, 69, 19, 0.15);
-  padding: 25px !important;
-  margin: 5px !important;
-}
-
-.traditional-card:hover {
-  background: rgba(255, 255, 255, 1) !important;
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(139, 69, 19, 0.25);
-}
-
-.traditional-value {
-  color: #2d2d2d !important;
-  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
-  font-weight: 700;
-  font-size: 2.8rem !important;
-  text-shadow: 1px 1px 3px rgba(139, 69, 19, 0.2);
-}
-
-/* 传统风格提示 */
-.traditional-hint {
-  color: #2d2d2d !important;
-  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
-  font-size: 1.3rem;
-  font-weight: 600;
-  text-shadow: 1px 1px 3px rgba(139, 69, 19, 0.2);
-  margin-bottom: 30px;
-}
-
-/* 传统风格按钮 */
-.traditional-button {
-  background: linear-gradient(45deg, #daa520, #b8860b) !important;
-  border: 2px solid #8b4513 !important;
-  color: white !important;
-  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
-  font-weight: 600;
-  font-size: 1.1rem;
-  border-radius: 25px;
-  box-shadow: 0 6px 20px rgba(139, 69, 19, 0.3);
-  padding: 15px 30px !important;
-  margin: 10px !important;
-}
-
-.traditional-button:hover {
-  background: linear-gradient(45deg, #b8860b, #daa520) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(139, 69, 19, 0.4);
-}
-
-.traditional-button:disabled {
-  background: #ccc !important;
-  border-color: #999 !important;
-  color: #666 !important;
-  cursor: not-allowed;
-}
-
-/* 传统风格底部信息 */
-.traditional-footer {
-  background: rgba(255, 255, 255, 0.9) !important;
-  border: 2px solid #cd853f !important;
-  border-radius: 12px;
-  color: #2d2d2d !important;
-  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
-  backdrop-filter: blur(5px);
-  padding: 20px !important;
-  margin-top: 30px !important;
 }
 
 .traditional-footer .footer-text {
@@ -3119,6 +3598,677 @@ export default {
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+/* 加载状态样式 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(5px);
+}
+
+.loading-spinner {
+  text-align: center;
+  color: white;
+}
+
+.spinner-ring {
+  display: inline-block;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 20px;
+}
+
+.spinner-ring::after {
+  content: " ";
+  display: block;
+  width: 46px;
+  height: 46px;
+  margin: 1px;
+  border-radius: 50%;
+  border: 5px solid #fff;
+  border-color: #fff transparent #fff transparent;
+  animation: spinning 1.2s linear infinite;
+}
+
+@keyframes spinning {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #00ffff;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 时间系统样式 */
+.time-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 260px;
+  background: rgba(0, 20, 40, 0.95);
+  border: 2px solid #00ffff;
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  z-index: 100;
+}
+
+.time-panel h3 {
+  color: #00ffff;
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.advance-day-btn {
+  background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  padding: 8px 15px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-left: 10px;
+}
+
+.advance-day-btn:hover {
+  background: linear-gradient(45deg, #ff8e8e, #ffb3b3);
+  box-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
+}
+
+.current-day {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #00ff00;
+  text-align: center;
+  margin-bottom: 10px;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.hospital-status {
+  text-align: center;
+  padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  background: rgba(0, 255, 0, 0.1);
+  color: #00ff00;
+  border: 1px solid #00ff00;
+}
+
+.hospital-status.needs-hospital {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff0000;
+  border: 1px solid #ff0000;
+  animation: blink 1s infinite;
+}
+
+.last-hospital {
+  text-align: center;
+  color: #cccccc;
+  font-size: 0.9rem;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.5; }
+}
+
+/* 成就系统样式 */
+.achievement-panel {
+  position: fixed;
+  width: 260px;
+  background: rgba(40, 20, 0, 0.95);
+  border: 2px solid #ffd700;
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+  backdrop-filter: blur(10px);
+  z-index: 100;
+}
+
+.achievement-panel.left-top-panel {
+  top: 20px;
+  left: 20px;
+}
+
+.achievement-panel.right-top-panel {
+  top: 200px;
+  right: 20px;
+}
+
+.achievement-panel h3 {
+  color: #ffd700;
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.achievement-btn {
+  background: linear-gradient(45deg, #ffd700, #ffed4a);
+  border: none;
+  border-radius: 10px;
+  color: #333;
+  padding: 8px 15px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-left: 10px;
+}
+
+.achievement-btn:hover {
+  background: linear-gradient(45deg, #ffed4a, #fff59d);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.achievement-summary {
+  display: flex;
+  justify-content: space-between;
+  color: #ffd700;
+  font-size: 0.9rem;
+}
+
+.achievement-score, .achievement-count {
+  text-align: center;
+  padding: 5px;
+  border-radius: 5px;
+  background: rgba(255, 215, 0, 0.1);
+}
+
+/* 医院系统样式 */
+.hospital-corner {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 100;
+}
+
+.corner-hospital-btn {
+  background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+  border: 2px solid #ff6b6b;
+  border-radius: 15px;
+  color: white;
+  padding: 15px 20px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.corner-hospital-btn:hover {
+  background: linear-gradient(45deg, #ff8e8e, #ffb3b3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+}
+
+.hospital-icon {
+  font-size: 1.5rem;
+}
+
+.hospital-text {
+  font-weight: 600;
+}
+
+.hospital-cost {
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.hospital-panel {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  width: 300px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #ff6b6b;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 0 30px rgba(255, 107, 107, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.hospital-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.hospital-header h3 {
+  color: #ff6b6b;
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #ff6b6b;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.hospital-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.hospital-services {
+  margin-bottom: 15px;
+}
+
+.service-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.service-icon {
+  font-size: 1.2rem;
+}
+
+.hospital-treatment-btn {
+  width: 100%;
+  background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  padding: 12px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.hospital-treatment-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, #ff8e8e, #ffb3b3);
+  box-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
+}
+
+.hospital-treatment-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 医院选项卡样式 */
+.hospital-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 2px solid rgba(255, 107, 107, 0.3);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  color: #ff6b6b;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-btn.active {
+  color: #333;
+  border-bottom-color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.tab-btn:hover {
+  background: rgba(255, 107, 107, 0.05);
+}
+
+.volunteer-info {
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 15px;
+}
+
+.volunteer-description {
+  color: #00aa00;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.volunteer-hours {
+  color: #333;
+  font-size: 12px;
+}
+
+.volunteer-services {
+  margin-bottom: 15px;
+}
+
+.volunteer-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(45deg, #00aa00, #00dd00);
+  border: 2px solid #00aa00;
+  border-radius: 15px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.volunteer-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, #00dd00, #00aa00);
+  box-shadow: 0 0 20px rgba(0, 170, 0, 0.5);
+}
+
+.volunteer-btn:disabled {
+  background: #666;
+  border-color: #555;
+  color: #999;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.volunteer-progress {
+  margin-bottom: 15px;
+  text-align: center;
+  color: #00aa00;
+}
+
+/* 义工系统样式 */
+.volunteer-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 320px;
+  width: 260px;
+  background: rgba(0, 40, 20, 0.95);
+  border: 2px solid #00ff00;
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+  backdrop-filter: blur(10px);
+  z-index: 100;
+}
+
+.volunteer-panel h3 {
+  color: #00ff00;
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.volunteer-info {
+  text-align: center;
+  color: #cccccc;
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+}
+
+.volunteer-hours {
+  color: #00ff00;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.volunteer-btn {
+  width: 100%;
+  background: linear-gradient(45deg, #00ff00, #32ff32);
+  border: none;
+  border-radius: 10px;
+  color: #333;
+  padding: 12px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.volunteer-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, #32ff32, #66ff66);
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+.volunteer-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 成就弹窗样式 */
+.achievement-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.achievement-modal {
+  background: linear-gradient(135deg, #2d1810, #4a2c18);
+  border: 3px solid #ffd700;
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 0 50px rgba(255, 215, 0, 0.3);
+}
+
+.achievement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.achievement-title {
+  color: #ffd700;
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+  margin: 0;
+}
+
+.close-achievement-btn {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #ffd700;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.close-achievement-btn:hover {
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.achievement-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 15px;
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 10px;
+  border: 1px solid #ffd700;
+}
+
+.stat-label {
+  display: block;
+  color: #ffd700;
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.stat-value {
+  display: block;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.new-achievements {
+  margin-bottom: 20px;
+}
+
+.new-achievements h3 {
+  color: #ffd700;
+  text-align: center;
+  margin-bottom: 15px;
+  font-size: 1.3rem;
+}
+
+.achievement-item {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  margin-bottom: 10px;
+  background: rgba(255, 215, 0, 0.05);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.achievement-item.new {
+  background: rgba(255, 215, 0, 0.15);
+  border-color: #ffd700;
+  animation: newAchievementGlow 2s infinite alternate;
+}
+
+.achievement-item.unlocked {
+  background: rgba(255, 215, 0, 0.1);
+  border-color: #ffd700;
+}
+
+.achievement-icon {
+  font-size: 2rem;
+  margin-right: 15px;
+}
+
+.achievement-info {
+  flex: 1;
+}
+
+.achievement-name {
+  color: #ffd700;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.achievement-reward {
+  color: #32ff32;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.achievement-status {
+  color: #cccccc;
+  font-size: 0.9rem;
+}
+
+@keyframes newAchievementGlow {
+  0% {
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  }
+}
+
+/* 调整捐赠按钮位置 */
+.donation-school {
+  bottom: 120px !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .time-panel, .achievement-panel {
+    width: 250px;
+    right: 10px;
+  }
+  
+  .hospital-corner {
+    bottom: 10px;
+    right: 10px;
+  }
+  
+  .volunteer-panel {
+    width: 250px;
+    bottom: 10px;
+    left: 10px;
+  }
+  
+  .hospital-panel {
+    width: 280px;
   }
 }
 </style> 
