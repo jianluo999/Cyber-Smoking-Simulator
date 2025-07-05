@@ -1,0 +1,65 @@
+/* 赛博朋克风格全局样式 */
+:root {
+  --cyber-pink: #ff0080;
+  --cyber-cyan: #00ffff;
+  --cyber-purple: #8000ff;
+  --cyber-green: #00ff00;
+  --cyber-orange: #ff4000;
+  --cyber-blue: #0080ff;
+  --dark-bg: #0a0a0a;
+  --darker-bg: #050505;
+  --glow-color: #00ffff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Orbitron', monospace;
+  background: var(--dark-bg);
+  color: var(--cyber-cyan);
+  overflow: hidden;
+}
+
+/* 霓虹灯效果 */
+.neon-text {
+  text-shadow: 
+    0 0 5px var(--glow-color),
+    0 0 10px var(--glow-color),
+    0 0 15px var(--glow-color),
+    0 0 20px var(--glow-color);
+}
+
+/* 赛博朋克按钮 */
+.cyber-button {
+  background: transparent;
+  border: 2px solid var(--cyber-cyan);
+  color: var(--cyber-cyan);
+  padding: 10px 20px;
+  font-family: 'Orbitron', monospace;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.cyber-button:hover {
+  background: var(--cyber-cyan);
+  color: var(--dark-bg);
+  box-shadow: 
+    0 0 10px var(--cyber-cyan),
+    0 0 20px var(--cyber-cyan),
+    0 0 30px var(--cyber-cyan);
+}
+
+/* 毛玻璃效果 */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+} 
