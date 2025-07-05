@@ -50,6 +50,14 @@
               <div class="cigarette-tobacco"></div>
               <!-- 灰烬层 -->
               <div class="cigarette-ash" :style="{ height: ashProgress + '%' }"></div>
+              <!-- 内部进度条 -->
+              <div class="internal-progress" v-if="isSmoking">
+                <div class="progress-fill" :style="{ height: (100 - smokingProgress) + '%' }"></div>
+                <div class="progress-info">
+                  <div class="progress-percentage">{{ Math.round(smokingProgress) }}%</div>
+                  <div class="progress-timer">{{ timeRemaining }}s</div>
+                </div>
+              </div>
             </div>
             <!-- 过滤嘴 -->
             <div class="cigarette-filter">
@@ -91,8 +99,13 @@
         </div>
       </div>
 
-
     </div>
+
+     <!-- 吸烟进度条 -->
+     <div class="smoking-progress" v-if="isSmoking" :class="progressClass">
+        <div class="progress-text">{{ themeConfig.progressText }}: {{ Math.round(smokingProgress) }}%</div>
+        <div class="progress-time">{{ themeConfig.timeRemaining }}: {{ timeRemaining }}秒</div>
+      </div>
 
     <!-- 控制面板 -->
     <div class="control-panel">
@@ -123,6 +136,8 @@ export default {
     const smokeWisps = ref([])
     const currentTheme = ref('cyber')
     const ashProgress = ref(0) // 灰烬进度 0-100%
+    const smokingProgress = ref(0)
+    const timeRemaining = ref(0)
 
     const stats = reactive({
       todaySmokes: 0,
@@ -132,6 +147,7 @@ export default {
     let smokeInterval = null
     let streamInterval = null
     let wispInterval = null
+    let progressInterval = null
     let animationFrame = null
     let smokingDuration = 15 // 吸烟总时长（秒）
 
@@ -143,7 +159,9 @@ export default {
         hintText: '点击香烟开始模拟吸烟',
         startText: '开始吸烟',
         smokingText: '吸烟中...',
-        resetText: '重置统计'
+        resetText: '重置统计',
+        progressText: '吸烟进度',
+        timeRemaining: '剩余时间'
       },
       traditional: {
         title: '戒烟助手',
@@ -151,7 +169,9 @@ export default {
         hintText: '点击香烟体验吸烟感受',
         startText: '体验吸烟',
         smokingText: '体验中...',
-        resetText: '清空记录'
+        resetText: '清空记录',
+        progressText: '体验进度',
+        timeRemaining: '剩余时间'
       }
     }
 
@@ -182,6 +202,11 @@ export default {
     const buttonClass = computed(() => ({
       'cyber-button': currentTheme.value === 'cyber',
       'traditional-button': currentTheme.value === 'traditional'
+    }))
+
+    const progressClass = computed(() => ({
+      'cyber-progress': currentTheme.value === 'cyber',
+      'traditional-progress': currentTheme.value === 'traditional'
     }))
 
 
@@ -249,6 +274,8 @@ export default {
       
       isSmoking.value = true
       ashProgress.value = 0
+      smokingProgress.value = 0
+      timeRemaining.value = smokingDuration
       smokeParticles.value = []
       smokeStreams.value = []
       smokeWisps.value = []
@@ -295,18 +322,21 @@ export default {
         }
       }, 500)
 
-      // 灰烬进度更新
+      // 进度和灰烬更新
       const startTime = Date.now()
-      const ashInterval = setInterval(() => {
+      const progressInterval = setInterval(() => {
         const elapsed = (Date.now() - startTime) / 1000
         const progress = Math.min((elapsed / smokingDuration) * 100, 100)
+        const remaining = Math.max(smokingDuration - elapsed, 0)
         
+        smokingProgress.value = progress
+        timeRemaining.value = Math.ceil(remaining)
         ashProgress.value = progress
         
         if (progress >= 100) {
-          clearInterval(ashInterval)
+          clearInterval(progressInterval)
         }
-      }, 200)
+      }, 100)
       
       // 记录吸烟数据
       try {
@@ -322,6 +352,8 @@ export default {
       setTimeout(() => {
         isSmoking.value = false
         ashProgress.value = 0
+        smokingProgress.value = 0
+        timeRemaining.value = 0
         smokeParticles.value = []
         smokeStreams.value = []
         smokeWisps.value = []
@@ -337,6 +369,9 @@ export default {
         if (wispInterval) {
           clearInterval(wispInterval)
           wispInterval = null
+        }
+        if (progressInterval) {
+          clearInterval(progressInterval)
         }
         loadStats()
       }, smokingDuration * 1000)
@@ -388,11 +423,14 @@ export default {
       currentTheme,
       themeConfig,
       ashProgress,
+      smokingProgress,
+      timeRemaining,
       titleClass,
       subtitleClass,
       hintClass,
       indicatorClass,
       buttonClass,
+      progressClass,
       smoke,
       resetStats,
       toggleTheme
@@ -592,9 +630,120 @@ export default {
 
 .traditional-indicator .ripple:nth-child(3) {
   animation: traditionalPulse 2s infinite 1s;
+  }
+
+/* 进度条样式 */
+.smoking-progress {
+  position: absolute;
+  bottom: 200px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 400px;
+  max-width: 90%;
+  z-index: 20;
+  text-align: center;
 }
 
+.progress-container {
+  width: 100%;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid var(--cyber-cyan);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+  margin-bottom: 15px;
+  position: relative;
+}
 
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyber-cyan), var(--cyber-pink));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.3), 
+    transparent
+  );
+  animation: progressShine 2s infinite;
+}
+
+@keyframes progressShine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.progress-text {
+  color: var(--cyber-cyan);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-shadow: 0 0 10px var(--cyber-cyan);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.progress-time {
+  color: var(--cyber-pink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-shadow: 0 0 8px var(--cyber-pink);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* 传统主题进度条 */
+.traditional-progress {
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #8b4513;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 25px rgba(139, 69, 19, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.traditional-progress .progress-container {
+  background: rgba(139, 69, 19, 0.2);
+  border: 2px solid #8b4513;
+  box-shadow: 0 2px 10px rgba(139, 69, 19, 0.3);
+}
+
+.traditional-progress .progress-bar {
+  background: linear-gradient(90deg, #daa520, #b8860b);
+  box-shadow: 0 0 10px rgba(218, 165, 32, 0.5);
+}
+
+.traditional-progress .progress-text {
+  color: #2d2d2d;
+  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-shadow: 1px 1px 3px rgba(139, 69, 19, 0.3);
+  text-transform: none;
+  letter-spacing: 1px;
+}
+
+.traditional-progress .progress-time {
+  color: #8b4513;
+  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(139, 69, 19, 0.2);
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
 
 .cyber-cigarette-container {
   position: relative;
@@ -794,33 +943,37 @@ export default {
 .cigarette-tip.burning {
   background: linear-gradient(180deg, #ff0000, #ff4000, #ffff00);
   box-shadow: 
-    0 0 30px #ff4000,
-    0 0 50px #ff4000,
-    0 0 70px #ff4000,
-    0 0 90px #ff2000;
+    0 0 20px #ff4000,
+    0 0 40px #ff4000,
+    0 0 60px #ff4000,
+    0 0 80px #ff2000;
   animation: burning 0.5s infinite alternate;
 }
 
 .fire-core {
   position: absolute;
-  width: 12px;
-  height: 12px;
-  background: #ffffff;
+  width: 16px;
+  height: 16px;
+  background: radial-gradient(circle, #ffffff 0%, #ffff00 40%, #ff8800 80%, transparent 100%);
   border-radius: 50%;
-  top: 30%;
+  top: 20%;
   left: 50%;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 15px #ffffff;
+  box-shadow: 0 0 20px #ffffff;
   animation: fireCore 0.3s infinite alternate;
 }
 
 .fire-glow {
   position: absolute;
-  width: 40px;
-  height: 40px;
-  background: radial-gradient(circle, rgba(255, 255, 0, 0.8), transparent);
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle, 
+    rgba(255, 255, 0, 0.8) 0%,
+    rgba(255, 170, 0, 0.6) 30%,
+    rgba(255, 100, 0, 0.4) 60%,
+    transparent 100%);
   border-radius: 50%;
-  top: 20%;
+  top: 0%;
   left: 50%;
   transform: translate(-50%, -50%);
   animation: fireGlow 0.7s infinite alternate;
@@ -874,13 +1027,14 @@ export default {
   top: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(180deg, #ddd 0%, #ccc 30%, #bbb 70%, #999 100%);
+  background: linear-gradient(180deg, #333 0%, #222 30%, #111 70%, #000 100%);
   border-radius: 0;
-  transition: height 0.5s ease;
+  transition: height 0.3s ease-out;
   z-index: 5;
   box-shadow: 
-    inset 0 2px 4px rgba(0, 0, 0, 0.1),
-    0 0 8px rgba(153, 153, 153, 0.3);
+    inset 0 2px 4px rgba(0, 0, 0, 0.3),
+    0 0 10px rgba(0, 0, 0, 0.5);
+  animation: ashBurn 0.5s ease-out;
 }
 
 .cigarette-ash::before {
@@ -889,31 +1043,48 @@ export default {
   top: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #888, #aaa, #888);
-  animation: ashGlow 2s infinite alternate;
+  height: 3px;
+  background: linear-gradient(90deg, #ff4500, #ff6500, #ff4500);
+  animation: ashGlow 1.5s infinite alternate;
+  border-radius: 2px;
 }
 
 .cigarette-ash::after {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 90%;
-  height: 90%;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: repeating-linear-gradient(
-    45deg,
+    90deg,
     transparent,
-    transparent 1px,
-    rgba(136, 136, 136, 0.2) 1px,
-    rgba(136, 136, 136, 0.2) 2px
+    transparent 2px,
+    rgba(68, 68, 68, 0.3) 2px,
+    rgba(68, 68, 68, 0.3) 4px
   );
 }
 
 @keyframes ashGlow {
-  0% { opacity: 0.3; }
-  100% { opacity: 0.7; }
+  0% { 
+    opacity: 0.8; 
+    transform: scaleY(1);
+  }
+  100% { 
+    opacity: 0.4; 
+    transform: scaleY(0.8);
+  }
+}
+
+@keyframes ashBurn {
+  0% { 
+    opacity: 0;
+    transform: scaleY(0);
+  }
+  100% { 
+    opacity: 1;
+    transform: scaleY(1);
+  }
 }
 
 .cigarette-filter {
@@ -992,19 +1163,27 @@ export default {
 
 @keyframes smokeStreamRise {
   0% {
-    transform: translateY(0) scale(0.3) rotate(0deg);
+    transform: translateY(0) scale(0.3) rotate(0deg) translateX(0);
     opacity: 0.9;
   }
-  30% {
-    transform: translateY(-120px) scale(0.8) rotate(15deg);
+  20% {
+    transform: translateY(-80px) scale(0.6) rotate(18deg) translateX(5px);
+    opacity: 0.8;
+  }
+  40% {
+    transform: translateY(-160px) scale(1) rotate(36deg) translateX(-8px);
     opacity: 0.7;
   }
   60% {
-    transform: translateY(-240px) scale(1.2) rotate(30deg);
+    transform: translateY(-240px) scale(1.4) rotate(54deg) translateX(12px);
     opacity: 0.5;
   }
+  80% {
+    transform: translateY(-320px) scale(1.7) rotate(72deg) translateX(-15px);
+    opacity: 0.3;
+  }
   100% {
-    transform: translateY(-360px) scale(1.8) rotate(45deg);
+    transform: translateY(-400px) scale(2) rotate(90deg) translateX(20px);
     opacity: 0;
   }
 }
@@ -1046,23 +1225,35 @@ export default {
 
 @keyframes smokeParticleRise {
   0% {
-    transform: translateY(0) scale(0.4) rotate(0deg);
+    transform: translateY(0) scale(0.4) rotate(0deg) translateX(0);
     opacity: 0.8;
   }
-  25% {
-    transform: translateY(-80px) scale(0.7) rotate(90deg);
+  15% {
+    transform: translateY(-60px) scale(0.6) rotate(54deg) translateX(8px);
+    opacity: 0.75;
+  }
+  30% {
+    transform: translateY(-120px) scale(0.8) rotate(108deg) translateX(-12px);
     opacity: 0.7;
   }
-  50% {
-    transform: translateY(-160px) scale(1) rotate(180deg);
+  45% {
+    transform: translateY(-180px) scale(1) rotate(162deg) translateX(18px);
     opacity: 0.6;
   }
+  60% {
+    transform: translateY(-240px) scale(1.2) rotate(216deg) translateX(-25px);
+    opacity: 0.5;
+  }
   75% {
-    transform: translateY(-240px) scale(1.3) rotate(270deg);
+    transform: translateY(-300px) scale(1.4) rotate(270deg) translateX(30px);
     opacity: 0.4;
   }
+  90% {
+    transform: translateY(-360px) scale(1.6) rotate(324deg) translateX(-35px);
+    opacity: 0.2;
+  }
   100% {
-    transform: translateY(-320px) scale(1.6) rotate(360deg);
+    transform: translateY(-420px) scale(1.8) rotate(360deg) translateX(40px);
     opacity: 0;
   }
 }
@@ -1095,27 +1286,43 @@ export default {
 
 @keyframes smokeWispRise {
   0% {
-    transform: translateY(0) scale(0.5) rotate(0deg) skew(0deg);
+    transform: translateY(0) scale(0.5) rotate(0deg) skew(0deg) translateX(0);
     opacity: 0.7;
   }
-  20% {
-    transform: translateY(-80px) scale(0.8) rotate(30deg) skew(10deg);
+  12% {
+    transform: translateY(-60px) scale(0.7) rotate(25deg) skew(8deg) translateX(6px);
+    opacity: 0.65;
+  }
+  24% {
+    transform: translateY(-120px) scale(0.9) rotate(50deg) skew(16deg) translateX(-10px);
     opacity: 0.6;
   }
-  40% {
-    transform: translateY(-160px) scale(1.1) rotate(60deg) skew(20deg);
+  36% {
+    transform: translateY(-180px) scale(1.1) rotate(75deg) skew(24deg) translateX(15px);
+    opacity: 0.55;
+  }
+  48% {
+    transform: translateY(-240px) scale(1.3) rotate(100deg) skew(32deg) translateX(-20px);
     opacity: 0.5;
   }
   60% {
-    transform: translateY(-240px) scale(1.4) rotate(90deg) skew(30deg);
+    transform: translateY(-300px) scale(1.5) rotate(125deg) skew(40deg) translateX(25px);
     opacity: 0.4;
   }
-  80% {
-    transform: translateY(-320px) scale(1.7) rotate(120deg) skew(40deg);
+  72% {
+    transform: translateY(-360px) scale(1.7) rotate(150deg) skew(48deg) translateX(-30px);
+    opacity: 0.3;
+  }
+  84% {
+    transform: translateY(-420px) scale(1.9) rotate(175deg) skew(56deg) translateX(35px);
     opacity: 0.2;
   }
+  96% {
+    transform: translateY(-480px) scale(2.1) rotate(200deg) skew(64deg) translateX(-40px);
+    opacity: 0.1;
+  }
   100% {
-    transform: translateY(-400px) scale(2) rotate(150deg) skew(50deg);
+    transform: translateY(-520px) scale(2.3) rotate(225deg) skew(70deg) translateX(45px);
     opacity: 0;
   }
 }
