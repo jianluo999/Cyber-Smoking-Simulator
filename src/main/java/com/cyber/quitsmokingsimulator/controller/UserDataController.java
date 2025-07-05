@@ -11,7 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/user")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class UserDataController {
     
     @Autowired
@@ -104,8 +104,16 @@ public class UserDataController {
     // 推进一天
     @PostMapping("/advance-day")
     public ResponseEntity<UserData> advanceDay(@RequestParam String sessionId) {
-        UserData userData = userDataService.advanceDay(sessionId);
-        return ResponseEntity.ok(userData);
+        System.out.println("推进一天接口被调用，sessionId: " + sessionId);
+        try {
+            UserData userData = userDataService.advanceDay(sessionId);
+            System.out.println("推进一天成功，当前天数: " + userData.getCurrentDay());
+            return ResponseEntity.ok(userData);
+        } catch (Exception e) {
+            System.err.println("推进一天失败: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(null);
+        }
     }
     
     // 获取成就列表
