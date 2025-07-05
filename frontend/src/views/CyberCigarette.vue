@@ -1457,6 +1457,7 @@ export default {
         economy.workPay = userData.workPay
         economy.isWorking = userData.isWorking
         economy.workProgress = userData.workProgress
+        economy.darkAgencyUnlocked = userData.darkAgencyUnlocked || false
         
         // 更新统计数据
         stats.todaySmokes = userData.todaySmokes
@@ -1514,6 +1515,7 @@ export default {
           workPay: economy.workPay,
           isWorking: economy.isWorking,
           workProgress: economy.workProgress,
+          darkAgencyUnlocked: economy.darkAgencyUnlocked,
           // 统计数据
           todaySmokes: stats.todaySmokes,
           totalSmokes: stats.totalSmokes,

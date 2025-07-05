@@ -58,6 +58,9 @@ public class UserData {
     @Column(nullable = false)
     private Integer workProgress = 0;
     
+    @Column(nullable = false)
+    private Boolean darkAgencyUnlocked = false;
+    
     // 统计数据
     @Column(nullable = false)
     private Integer todaySmokes = 0;
@@ -154,6 +157,9 @@ public class UserData {
     
     public Integer getWorkProgress() { return workProgress; }
     public void setWorkProgress(Integer workProgress) { this.workProgress = workProgress; }
+    
+    public Boolean getDarkAgencyUnlocked() { return darkAgencyUnlocked; }
+    public void setDarkAgencyUnlocked(Boolean darkAgencyUnlocked) { this.darkAgencyUnlocked = darkAgencyUnlocked; }
     
     public Integer getTodaySmokes() { return todaySmokes; }
     public void setTodaySmokes(Integer todaySmokes) { this.todaySmokes = todaySmokes; }

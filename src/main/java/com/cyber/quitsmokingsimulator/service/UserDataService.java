@@ -57,6 +57,7 @@ public class UserDataService {
         existingData.setWorkPay(newData.getWorkPay());
         existingData.setIsWorking(newData.getIsWorking());
         existingData.setWorkProgress(newData.getWorkProgress());
+        existingData.setDarkAgencyUnlocked(newData.getDarkAgencyUnlocked());
         
         // 更新统计数据
         existingData.setTodaySmokes(newData.getTodaySmokes());
@@ -105,6 +106,7 @@ public class UserDataService {
         userData.setWorkPay(50);
         userData.setIsWorking(false);
         userData.setWorkProgress(0);
+        userData.setDarkAgencyUnlocked(false);
         
         // 重置统计数据
         userData.setTodaySmokes(0);
