@@ -230,11 +230,11 @@
     </div>
 
     <!-- 标题 -->
-    <div class="title-section" style="position: relative; z-index: 1000; margin-top: 20px;">
-      <h1 class="main-title" :class="titleClass" style="font-size: 2.5rem; margin: 10px 0;">
+    <div class="title-section">
+      <h1 class="main-title" :class="titleClass">
         {{ themeConfig[currentTheme].title }}
       </h1>
-      <p class="subtitle" :class="subtitleClass" style="font-size: 1.2rem; margin: 10px 0;">
+      <p class="subtitle" :class="subtitleClass">
         {{ themeConfig[currentTheme].subtitle }}
       </p>
     </div>
