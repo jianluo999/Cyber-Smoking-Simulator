@@ -290,7 +290,7 @@
                 <div class="progress-fill" :style="{ height: (100 - smokingProgress) + '%' }"></div>
                 <div class="progress-info">
                   <div class="progress-percentage">{{ Math.round(smokingProgress) }}%</div>
-                  <div class="progress-timer">{{ timeRemaining }}s</div>
+                  <div class="progress-timer">{{ timeRemaining.toFixed(2) }}s</div>
                 </div>
               </div>
             </div>
@@ -339,7 +339,7 @@
      <!-- 吸烟进度条 -->
      <div class="smoking-progress cyber-progress" v-if="isSmoking">
         <div class="progress-text">吸烟进度: {{ Math.round(smokingProgress) }}%</div>
-        <div class="progress-time">剩余时间: {{ timeRemaining }}秒</div>
+                  <div class="progress-time">剩余时间: {{ timeRemaining.toFixed(2) }}秒</div>
       </div>
 
     <!-- 控制面板 -->
@@ -372,6 +372,25 @@
                 class="work-btn">
           {{ economy.isWorking ? '工作中...' : (shouldGoToHospital() ? '健康太差，无法工作' : '开始工作') }}
         </button>
+        
+        <!-- 黑心中介工作按钮 -->
+        <div v-if="economy.darkAgencyUnlocked" class="dark-work-section">
+          <div class="dark-work-info">
+            <h4>💀 黑心中介</h4>
+            <div class="dark-work-pay">💰 ¥{{ economy.darkWorkPay }}/次 (减少2年寿命)</div>
+          </div>
+          <div class="dark-work-progress" v-if="economy.isDarkWorking">
+            <div class="progress-bar dark-progress">
+              <div class="progress-fill" :style="{ width: economy.darkWorkProgress + '%' }"></div>
+            </div>
+            <span>黑心工作中... {{ economy.darkWorkProgress }}%</span>
+          </div>
+          <button @click="startDarkWork" 
+                  :disabled="economy.isDarkWorking"
+                  class="dark-work-btn">
+            {{ economy.isDarkWorking ? '工作中...' : '接受黑心工作' }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -756,7 +775,12 @@ export default {
       cigarettePrice: 20, // 香烟价格（每包）
       workPay: 50, // 打工收入
       isWorking: false, // 是否正在打工
-      workProgress: 0 // 打工进度
+      workProgress: 0, // 打工进度
+      // 黑心中介系统
+      darkAgencyUnlocked: false, // 是否解锁黑心中介
+      isDarkWorking: false, // 是否正在黑心中介工作
+      darkWorkProgress: 0, // 黑心中介工作进度
+      darkWorkPay: 500 // 黑心中介工作收入
     })
 
     // 健康系统
@@ -984,11 +1008,31 @@ export default {
       
       // 检查健康状况
       if (shouldGoToHospital()) {
-        showCustomAlert({
-          title: '健康状况不佳',
-          message: '您的健康状况太差，无法工作！请先去医院治疗。',
-          type: 'warning'
-        })
+        // 如果还没有解锁黑心中介，弹窗解锁
+        if (!economy.darkAgencyUnlocked) {
+          showCustomAlert({
+            title: '黑心中介解锁',
+            message: '您的健康状况太差，无法正常工作！但是...有一个黑心中介愿意雇佣您，一次工作500元，但会减少两年寿命。是否解锁黑心中介？',
+            type: 'warning',
+            showCancel: true,
+            confirmText: '解锁黑心中介',
+            cancelText: '拒绝',
+            onConfirm: () => {
+              economy.darkAgencyUnlocked = true
+              showCustomAlert({
+                title: '黑心中介已解锁',
+                message: '您现在可以接受黑心中介的工作了！记住，这是用生命换取金钱的交易...',
+                type: 'info'
+              })
+            }
+          })
+        } else {
+          showCustomAlert({
+            title: '健康状况不佳',
+            message: '您的健康状况太差，无法正常工作！请先去医院治疗，或者选择黑心中介的工作。',
+            type: 'warning'
+          })
+        }
         return
       }
       
@@ -1022,6 +1066,62 @@ export default {
           checkForNewAchievements()
         }
       }, 100) // 5秒完成一次打工
+    }
+
+    // 黑心中介工作功能
+    const startDarkWork = () => {
+      if (economy.isDarkWorking || isDead.value) return
+      
+      // 显示确认弹窗
+      showCustomAlert({
+        title: '黑心中介工作',
+        message: '您确定要接受黑心中介的工作吗？这将获得500元，但会减少两年寿命！',
+        type: 'warning',
+        showCancel: true,
+        confirmText: '接受工作',
+        cancelText: '拒绝',
+        onConfirm: () => {
+          economy.isDarkWorking = true
+          economy.darkWorkProgress = 0
+          
+          const darkWorkInterval = setInterval(() => {
+            economy.darkWorkProgress += 2
+            
+            if (economy.darkWorkProgress >= 100) {
+              economy.money += economy.darkWorkPay
+              economy.isDarkWorking = false
+              economy.darkWorkProgress = 0
+              clearInterval(darkWorkInterval)
+              
+              // 更新工作统计
+              stats.totalWorkDays += 1
+              
+              // 黑心中介工作会严重损害健康和寿命
+              health.lifeExpectancy = Math.max(30, health.lifeExpectancy - 2) // 减少2年寿命
+              
+              // 额外的健康损害
+              const darkWorkDamage = Math.random() * 3 + 3 // 3-6点伤害
+              health.lungHealth = Math.max(0, health.lungHealth - darkWorkDamage * 0.8)
+              health.heartHealth = Math.max(0, health.heartHealth - darkWorkDamage * 1.2)
+              health.liverHealth = Math.max(0, health.liverHealth - darkWorkDamage * 0.6)
+              health.immunity = Math.max(0, health.immunity - darkWorkDamage * 1.0)
+              
+              // 检查是否死亡
+              checkDeath()
+              
+              // 完成工作提示
+              showCustomAlert({
+                title: '黑心中介工作完成',
+                message: '您获得了500元，但您的健康和寿命都受到了严重损害...',
+                type: 'success'
+              })
+              
+              // 检查成就
+              checkForNewAchievements()
+            }
+          }, 100) // 5秒完成一次黑心中介工作
+        }
+      })
     }
 
     // 更新健康参数
@@ -1606,6 +1706,7 @@ export default {
       toggleShop,
       buyItem,
       startWork,
+      startDarkWork,
       checkDeath,
       donate,
       restartLife,
@@ -5536,5 +5637,112 @@ export default {
   .alert-btn {
     width: 100%;
   }
+}
+
+/* 黑心中介工作样式 */
+.dark-work-section {
+  margin-top: 15px;
+  padding: 15px;
+  border: 2px solid #ff0080;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 0, 128, 0.1), rgba(139, 0, 0, 0.1));
+  box-shadow: 0 0 15px rgba(255, 0, 128, 0.3);
+}
+
+.dark-work-info h4 {
+  color: #ff0080;
+  font-family: 'Orbitron', monospace;
+  font-size: 1.1rem;
+  margin: 0 0 5px 0;
+  text-shadow: 0 0 10px rgba(255, 0, 128, 0.5);
+}
+
+.dark-work-pay {
+  color: #ff6b6b;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.dark-work-progress {
+  margin-bottom: 10px;
+}
+
+.dark-progress .progress-bar {
+  background: rgba(255, 0, 128, 0.2);
+  border: 1px solid #ff0080;
+}
+
+.dark-progress .progress-fill {
+  background: linear-gradient(90deg, #ff0080, #ff6b6b);
+  box-shadow: 0 0 10px rgba(255, 0, 128, 0.8);
+}
+
+.dark-work-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(45deg, #8b0000, #ff0080);
+  border: 2px solid #ff0080;
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Orbitron', monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.dark-work-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, #ff0080, #ff6b6b);
+  box-shadow: 0 0 20px rgba(255, 0, 128, 0.5);
+  transform: translateY(-2px);
+}
+
+.dark-work-btn:disabled {
+  background: #666;
+  border-color: #555;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* 传统主题下的黑心中介样式 */
+.traditional .dark-work-section {
+  border-color: #8b0000;
+  background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(160, 82, 45, 0.1));
+  box-shadow: 0 0 10px rgba(139, 0, 0, 0.3);
+}
+
+.traditional .dark-work-info h4 {
+  color: #8b0000;
+  font-family: 'Microsoft YaHei', sans-serif;
+  text-shadow: none;
+}
+
+.traditional .dark-work-pay {
+  color: #a0522d;
+}
+
+.traditional .dark-progress .progress-bar {
+  border-color: #8b0000;
+}
+
+.traditional .dark-progress .progress-fill {
+  background: linear-gradient(90deg, #8b0000, #a0522d);
+  box-shadow: 0 0 5px rgba(139, 0, 0, 0.5);
+}
+
+.traditional .dark-work-btn {
+  background: linear-gradient(45deg, #8b0000, #a0522d);
+  border-color: #8b0000;
+  font-family: 'Microsoft YaHei', sans-serif;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.traditional .dark-work-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, #a0522d, #cd853f);
+  box-shadow: 0 0 15px rgba(139, 0, 0, 0.4);
 }
 </style> 
