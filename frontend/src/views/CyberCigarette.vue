@@ -28,16 +28,27 @@
       </div>
     </div>
 
-    <!-- 右上角时间统计面板 -->
-    <div class="time-stats-panel right-top-panel">
+    <!-- 右上角综合信息面板 -->
+    <div class="unified-info-panel right-top-panel">
       <div class="panel-header">
-        <h3>📅 游戏信息</h3>
+        <h3 class="panel-title">{{ currentTheme === 'cyber' ? '🎯 游戏状态' : '📊 游戏状态' }}</h3>
         <button @click="advanceDay" class="advance-day-btn">
           推进一天
         </button>
       </div>
-      <div class="time-stats-content">
-        <!-- 时间信息 -->
+      
+      <!-- 选项卡 -->
+      <div class="panel-tabs">
+        <button class="tab-button" :class="{ active: currentTab === 'game' }" @click="currentTab = 'game'">
+          游戏信息
+        </button>
+        <button class="tab-button" :class="{ active: currentTab === 'health' }" @click="currentTab = 'health'">
+          健康状况
+        </button>
+      </div>
+      
+      <!-- 游戏信息选项卡 -->
+      <div v-if="currentTab === 'game'" class="tab-content">
         <div class="time-info">
           <div class="current-day">第 {{ timeSystem.currentDay }} 天</div>
           <div class="hospital-status" :class="{ 'needs-hospital': timeSystem.needsHospital }">
@@ -47,7 +58,6 @@
             上次就医: {{ timeSystem.lastHospitalDay > 0 ? `第${timeSystem.lastHospitalDay}天` : '从未就医' }}
           </div>
         </div>
-        <!-- 统计信息 -->
         <div class="stats-info">
           <div class="stat-row">
             <span class="stat-icon">🚬</span>
@@ -68,6 +78,58 @@
             <span class="stat-icon">❤️</span>
             <span class="stat-label">捐赠次数:</span>
             <span class="stat-value">{{ stats.totalDonations }}次</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 健康状况选项卡 -->
+      <div v-if="currentTab === 'health'" class="tab-content">
+        <div class="health-warning" v-if="health.lungHealth < 50">
+          ⚠️ 健康危险
+        </div>
+        <div class="health-stats">
+          <div class="health-item" :class="{ 'critical-health': health.lungHealth < 30, 'pulse': isSmoking }">
+            <span class="health-label">🫁 肺部健康</span>
+            <div class="health-bar">
+              <div class="health-fill lung" :style="{ width: health.lungHealth + '%' }" 
+                   :class="{ 'critical': health.lungHealth < 30, 'pulsing': isSmoking }"></div>
+            </div>
+            <span class="health-value" :class="{ 'critical-text': health.lungHealth < 30, 'jumping-value': isSmoking }">{{ Math.round(health.lungHealth) }}%</span>
+          </div>
+          <div class="health-item" :class="{ 'critical-health': health.heartHealth < 30, 'pulse': isSmoking }">
+            <span class="health-label">❤️ 心脏健康</span>
+            <div class="health-bar">
+              <div class="health-fill heart" :style="{ width: health.heartHealth + '%' }"
+                   :class="{ 'critical': health.heartHealth < 30, 'pulsing': isSmoking }"></div>
+            </div>
+            <span class="health-value" :class="{ 'critical-text': health.heartHealth < 30, 'jumping-value': isSmoking }">{{ Math.round(health.heartHealth) }}%</span>
+          </div>
+          <div class="health-item" :class="{ 'critical-health': health.liverHealth < 30, 'pulse': isSmoking }">
+            <span class="health-label">🫀 肝脏健康</span>
+            <div class="health-bar">
+              <div class="health-fill liver" :style="{ width: health.liverHealth + '%' }"
+                   :class="{ 'critical': health.liverHealth < 30, 'pulsing': isSmoking }"></div>
+            </div>
+            <span class="health-value" :class="{ 'critical-text': health.liverHealth < 30, 'jumping-value': isSmoking }">{{ Math.round(health.liverHealth) }}%</span>
+          </div>
+          <div class="health-item" :class="{ 'pulse': isSmoking }">
+            <span class="health-label">🩸 血压</span>
+            <div class="health-number" :class="{ 'jumping-value': isSmoking }">{{ Math.round(health.bloodPressure) }} mmHg</div>
+          </div>
+          <div class="health-item" :class="{ 'pulse': isSmoking }">
+            <span class="health-label">🫁 血氧</span>
+            <div class="health-number" :class="{ 'jumping-value': isSmoking }">{{ Math.round(health.oxygenLevel) }}%</div>
+          </div>
+          <div class="health-item" :class="{ 'pulse': isSmoking }">
+            <span class="health-label">🛡️ 免疫力</span>
+            <div class="health-bar">
+              <div class="health-fill immunity" :style="{ width: health.immunity + '%' }" :class="{ 'pulsing': isSmoking }"></div>
+            </div>
+            <span class="health-value" :class="{ 'jumping-value': isSmoking }">{{ Math.round(health.immunity) }}%</span>
+          </div>
+          <div class="health-item life-expectancy" :class="{ 'pulse': isSmoking }">
+            <span class="health-label">⏰ 预期寿命</span>
+            <div class="health-number" :class="{ 'jumping-value': isSmoking }">{{ Math.round(health.lifeExpectancy) }}岁</div>
           </div>
         </div>
       </div>
@@ -110,60 +172,7 @@
       </div>
     </div>
 
-    <!-- 右侧健康面板 -->
-    <div class="health-panel right-panel">
-      <div class="panel-header">
-        <h3>健康状况</h3>
-        <div class="health-warning" v-if="health.lungHealth < 50">
-          ⚠️ 健康危险
-        </div>
-      </div>
-      <div class="health-stats">
-        <div class="health-item" :class="{ 'critical-health': health.lungHealth < 30 }">
-          <span class="health-label">🫁 肺部健康</span>
-          <div class="health-bar">
-            <div class="health-fill lung" :style="{ width: health.lungHealth + '%' }" 
-                 :class="{ 'critical': health.lungHealth < 30 }"></div>
-          </div>
-          <span class="health-value" :class="{ 'critical-text': health.lungHealth < 30 }">{{ Math.round(health.lungHealth) }}%</span>
-        </div>
-        <div class="health-item" :class="{ 'critical-health': health.heartHealth < 30 }">
-          <span class="health-label">❤️ 心脏健康</span>
-          <div class="health-bar">
-            <div class="health-fill heart" :style="{ width: health.heartHealth + '%' }"
-                 :class="{ 'critical': health.heartHealth < 30 }"></div>
-          </div>
-          <span class="health-value" :class="{ 'critical-text': health.heartHealth < 30 }">{{ Math.round(health.heartHealth) }}%</span>
-        </div>
-        <div class="health-item" :class="{ 'critical-health': health.liverHealth < 30 }">
-          <span class="health-label">🫀 肝脏健康</span>
-          <div class="health-bar">
-            <div class="health-fill liver" :style="{ width: health.liverHealth + '%' }"
-                 :class="{ 'critical': health.liverHealth < 30 }"></div>
-          </div>
-          <span class="health-value" :class="{ 'critical-text': health.liverHealth < 30 }">{{ Math.round(health.liverHealth) }}%</span>
-        </div>
-        <div class="health-item">
-          <span class="health-label">🩸 血压</span>
-          <div class="health-number">{{ Math.round(health.bloodPressure) }} mmHg</div>
-        </div>
-        <div class="health-item">
-          <span class="health-label">🫁 血氧</span>
-          <div class="health-number">{{ Math.round(health.oxygenLevel) }}%</div>
-        </div>
-        <div class="health-item">
-          <span class="health-label">🛡️ 免疫力</span>
-          <div class="health-bar">
-            <div class="health-fill immunity" :style="{ width: health.immunity + '%' }"></div>
-          </div>
-          <span class="health-value">{{ Math.round(health.immunity) }}%</span>
-        </div>
-        <div class="health-item life-expectancy">
-          <span class="health-label">⏰ 预期寿命</span>
-          <div class="health-number">{{ Math.round(health.lifeExpectancy) }}岁</div>
-        </div>
-      </div>
-    </div>
+
 
     <!-- 主要香烟区域 -->
     <div class="cigarette-stage">
@@ -595,6 +604,9 @@ export default {
     
     // 医院选项卡
     const hospitalTab = ref('treatment')
+    
+    // 统合信息面板选项卡
+    const currentTab = ref('game')
     
     // 成就系统
     const achievementSystem = reactive({
@@ -1482,7 +1494,10 @@ export default {
       achievementSystem,
       showAchievements,
       closeAchievements,
-      checkForNewAchievements
+      checkForNewAchievements,
+      
+      // 统合信息面板
+      currentTab
     }
   }
 }
@@ -4347,5 +4362,415 @@ export default {
   .hospital-panel {
     width: 280px;
   }
+}
+
+/* 统合信息面板样式 */
+.unified-info-panel {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 320px;
+  background: rgba(0, 255, 255, 0.1);
+  border: 2px solid #00ffff;
+  border-radius: 15px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+  z-index: 1000;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.unified-info-panel .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.unified-info-panel .panel-title {
+  color: #00ffff;
+  font-size: 1.2rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.unified-info-panel .advance-day-btn {
+  background: linear-gradient(45deg, #00ffff, #ff00ff);
+  border: none;
+  border-radius: 12px;
+  color: #000;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.unified-info-panel .advance-day-btn:hover {
+  background: linear-gradient(45deg, #ff00ff, #00ffff);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+}
+
+/* 选项卡样式 */
+.panel-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.tab-button {
+  flex: 1;
+  padding: 12px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.tab-button.active {
+  color: #00ffff;
+  background: rgba(0, 255, 255, 0.2);
+}
+
+.tab-button:hover {
+  color: #00ffff;
+  background: rgba(0, 255, 255, 0.1);
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #00ffff, #ff00ff);
+}
+
+/* 选项卡内容 */
+.tab-content {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 游戏信息样式 */
+.time-info {
+  margin-bottom: 20px;
+}
+
+.current-day {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #00ffff;
+  text-align: center;
+  margin-bottom: 10px;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.hospital-status {
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+  background: rgba(0, 255, 0, 0.1);
+  color: #00ff00;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+.hospital-status.needs-hospital {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff4444;
+  border-color: rgba(255, 0, 0, 0.3);
+  animation: pulse 2s infinite;
+}
+
+.last-hospital {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.8rem;
+}
+
+.stats-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-icon {
+  font-size: 1.2rem;
+  width: 20px;
+  text-align: center;
+}
+
+.stat-label {
+  flex: 1;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+}
+
+.stat-value {
+  color: #00ffff;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+/* 健康状态样式 */
+.health-warning {
+  background: rgba(255, 0, 0, 0.2);
+  border: 1px solid #ff4444;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  color: #ff4444;
+  font-weight: bold;
+  margin-bottom: 15px;
+  animation: pulse 2s infinite;
+}
+
+.health-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.health-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.health-item.pulse {
+  border-color: #ff4444;
+}
+
+.health-item.critical-health {
+  border-color: #ff4444;
+  background: rgba(255, 0, 0, 0.1);
+}
+
+.health-item.critical-health.pulse {
+  animation: healthPulse 0.5s infinite;
+}
+
+@keyframes healthPulse {
+  0%, 100% { border-color: #ff4444; }
+  50% { border-color: #ff0000; }
+}
+
+.health-label {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+  min-width: 80px;
+}
+
+.health-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.health-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.health-fill.pulsing {
+  animation: healthFillPulse 0.5s infinite;
+}
+
+@keyframes healthFillPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.health-fill.lung {
+  background: linear-gradient(90deg, #ff4444, #ff6b6b);
+}
+
+.health-fill.heart {
+  background: linear-gradient(90deg, #e74c3c, #c0392b);
+}
+
+.health-fill.liver {
+  background: linear-gradient(90deg, #f39c12, #e67e22);
+}
+
+.health-fill.immunity {
+  background: linear-gradient(90deg, #9b59b6, #8e44ad);
+}
+
+.health-fill.critical {
+  background: linear-gradient(90deg, #ff0000, #cc0000);
+}
+
+.health-value {
+  color: #00ffff;
+  font-weight: bold;
+  font-size: 0.9rem;
+  min-width: 40px;
+  text-align: right;
+}
+
+.health-value.critical-text {
+  color: #ff4444;
+  animation: textFlash 1s infinite;
+}
+
+.health-value.jumping-value {
+  animation: jumpingValue 0.3s infinite;
+}
+
+@keyframes textFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes jumpingValue {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.health-number {
+  color: #00ffff;
+  font-weight: bold;
+  font-size: 0.9rem;
+  min-width: 80px;
+  text-align: right;
+}
+
+.health-number.jumping-value {
+  animation: jumpingValue 0.3s infinite;
+}
+
+.life-expectancy {
+  border-color: #ff00ff;
+  background: rgba(255, 0, 255, 0.1);
+}
+
+.life-expectancy .health-number {
+  color: #ff00ff;
+  font-size: 1rem;
+}
+
+/* 传统主题样式 */
+.theme-traditional .unified-info-panel {
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #8b4513;
+  box-shadow: 0 0 20px rgba(139, 69, 19, 0.3);
+}
+
+.theme-traditional .unified-info-panel .panel-title {
+  color: #8b4513;
+}
+
+.theme-traditional .unified-info-panel .advance-day-btn {
+  background: linear-gradient(45deg, #8b4513, #a0522d);
+  color: white;
+}
+
+.theme-traditional .panel-tabs {
+  background: rgba(139, 69, 19, 0.1);
+}
+
+.theme-traditional .tab-button {
+  color: #8b4513;
+}
+
+.theme-traditional .tab-button.active {
+  color: #654321;
+  background: rgba(139, 69, 19, 0.2);
+}
+
+.theme-traditional .tab-button.active::after {
+  background: linear-gradient(90deg, #8b4513, #a0522d);
+}
+
+.theme-traditional .current-day {
+  color: #8b4513;
+}
+
+.theme-traditional .hospital-status {
+  color: #228b22;
+  background: rgba(34, 139, 34, 0.1);
+  border-color: rgba(34, 139, 34, 0.3);
+}
+
+.theme-traditional .hospital-status.needs-hospital {
+  color: #dc143c;
+  background: rgba(220, 20, 60, 0.1);
+  border-color: rgba(220, 20, 60, 0.3);
+}
+
+.theme-traditional .last-hospital {
+  color: #666;
+}
+
+.theme-traditional .stat-row {
+  background: rgba(139, 69, 19, 0.1);
+  border-color: rgba(139, 69, 19, 0.2);
+}
+
+.theme-traditional .stat-label {
+  color: #333;
+}
+
+.theme-traditional .stat-value {
+  color: #8b4513;
+}
+
+.theme-traditional .health-item {
+  background: rgba(139, 69, 19, 0.1);
+  border-color: rgba(139, 69, 19, 0.2);
+}
+
+.theme-traditional .health-label {
+  color: #333;
+}
+
+.theme-traditional .health-value {
+  color: #8b4513;
+}
+
+.theme-traditional .health-number {
+  color: #8b4513;
+}
+
+.theme-traditional .life-expectancy {
+  border-color: #8b4513;
+  background: rgba(139, 69, 19, 0.1);
+}
+
+.theme-traditional .life-expectancy .health-number {
+  color: #8b4513;
 }
 </style> 
