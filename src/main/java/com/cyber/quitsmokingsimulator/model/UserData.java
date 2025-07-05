@@ -216,7 +216,19 @@ public class UserData {
                 this.unlockedAchievements += ",";
             }
             this.unlockedAchievements += achievementId;
-            this.achievementScore += 10; // 每个成就10分
+            // 默认分数，实际分数会在Service层处理
+            this.achievementScore += 10; 
+        }
+    }
+    
+    // 添加成就（带分数）
+    public void addAchievement(String achievementId, int score) {
+        if (!this.unlockedAchievements.contains(achievementId)) {
+            if (!this.unlockedAchievements.isEmpty()) {
+                this.unlockedAchievements += ",";
+            }
+            this.unlockedAchievements += achievementId;
+            this.achievementScore += score;
         }
     }
     

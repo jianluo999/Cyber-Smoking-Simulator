@@ -376,25 +376,31 @@
                 class="work-btn">
           {{ economy.isWorking ? '工作中...' : (shouldGoToHospital() ? '健康太差，无法工作' : '开始工作') }}
         </button>
-        
-        <!-- 黑心中介工作按钮 -->
-        <div v-if="economy.darkAgencyUnlocked" class="dark-work-section">
-          <div class="dark-work-info">
-            <h4>💀 黑心中介</h4>
-            <div class="dark-work-pay">💰 ¥{{ economy.darkWorkPay }}/次 (减少2年寿命)</div>
-          </div>
-          <div class="dark-work-progress" v-if="economy.isDarkWorking">
-            <div class="progress-bar dark-progress">
-              <div class="progress-fill" :style="{ width: economy.darkWorkProgress + '%' }"></div>
-            </div>
-            <span>黑心工作中... {{ economy.darkWorkProgress }}%</span>
-          </div>
-          <button @click="startDarkWork" 
-                  :disabled="economy.isDarkWorking"
-                  class="dark-work-btn">
-            {{ economy.isDarkWorking ? '工作中...' : '接受黑心工作' }}
-          </button>
+      </div>
+    </div>
+    
+    <!-- 黑心中介面板 -->
+    <div class="dark-agency-panel" v-if="economy.darkAgencyUnlocked">
+      <div class="panel-header dark-header">
+        <h3>💀 黑心中介</h3>
+        <div class="danger-badge">生命换钱</div>
+      </div>
+      <div class="dark-agency-content">
+        <div class="dark-info">
+          <div class="dark-pay">💰 ¥{{ economy.darkWorkPay }}/次</div>
+          <div class="dark-cost">⚠️ 代价：减少2年寿命</div>
         </div>
+        <div class="dark-work-progress" v-if="economy.isDarkWorking">
+          <div class="progress-bar dark-progress">
+            <div class="progress-fill" :style="{ width: economy.darkWorkProgress + '%' }"></div>
+          </div>
+          <span>黑心工作中... {{ economy.darkWorkProgress }}%</span>
+        </div>
+        <button @click="startDarkWork" 
+                :disabled="economy.isDarkWorking || isDead"
+                class="dark-work-btn">
+          {{ economy.isDarkWorking ? '工作中...' : '接受黑心工作' }}
+        </button>
       </div>
     </div>
 
@@ -1080,10 +1086,20 @@ export default {
         timeSystem.currentDay = response.data.currentDay
         timeSystem.needsHospital = response.data.needsHospital
         
-        // 更新健康数据
+        // 更新所有健康数据
         health.lungHealth = response.data.lungHealth
         health.heartHealth = response.data.heartHealth
+        health.liverHealth = response.data.liverHealth
+        health.immunity = response.data.immunity
         health.lifeExpectancy = response.data.lifeExpectancy
+        
+        // 显示推进一天的效果弹窗
+        showCustomAlert({
+          title: '🌅 时间推进',
+          message: `新的一天开始了！健康得到了一些恢复，但时间也在流逝...\n健康度略微增加，寿命减少0.3年`,
+          type: 'info',
+          confirmText: '知道了'
+        })
         
         checkForNewAchievements()
       } catch (error) {
@@ -1098,16 +1114,32 @@ export default {
           params: { sessionId: sessionId.value }
         })
         
+        const oldUnlocked = achievementSystem.achievements.unlocked || []
         achievementSystem.achievements = response.data
         
         // 检查是否有新成就
         const newUnlocked = response.data.unlocked.filter(id => 
-          !achievementSystem.achievements.unlocked.includes(id)
+          !oldUnlocked.includes(id)
         )
         
+        // 为每个新成就显示单独弹窗
         if (newUnlocked.length > 0) {
           achievementSystem.newAchievements = newUnlocked
-          achievementSystem.showAchievementModal = true
+          
+          // 逐个显示成就弹窗
+          for (let i = 0; i < newUnlocked.length; i++) {
+            setTimeout(() => {
+              const achievementId = newUnlocked[i]
+              const achievementName = response.data.all[achievementId] || achievementId
+              
+              showCustomAlert({
+                title: '🏆 成就解锁！',
+                message: `恭喜您解锁新成就：${achievementName}`,
+                type: 'success',
+                confirmText: '太棒了！'
+              })
+            }, i * 1500) // 每个成就间隔1.5秒显示
+          }
         }
       } catch (error) {
         console.error('获取成就失败:', error)
@@ -2401,6 +2433,130 @@ export default {
   transition: all 0.3s ease;
 }
 
+/* 黑心中介面板样式 */
+.dark-agency-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 320px; /* 在工地面板右边一点 */
+  width: 280px;
+  background: rgba(40, 0, 0, 0.9);
+  border: 2px solid #ff0000;
+  border-radius: 15px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.dark-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #ff0000;
+  padding-bottom: 10px;
+}
+
+.dark-header h3 {
+  color: #ff4444;
+  margin: 0;
+  font-size: 1.2rem;
+  text-shadow: 0 0 10px #ff4444;
+}
+
+.danger-badge {
+  background: #ff0000;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: bold;
+  animation: pulse 2s infinite;
+}
+
+.dark-agency-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.dark-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dark-pay {
+  color: #ffaa00;
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 0 0 8px #ffaa00;
+}
+
+.dark-cost {
+  color: #ff4444;
+  font-size: 12px;
+  font-weight: bold;
+  animation: blink 1.5s infinite;
+}
+
+.dark-work-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.dark-work-progress span {
+  color: #ff4444;
+  font-size: 12px;
+  text-align: center;
+}
+
+.dark-progress {
+  background: rgba(51, 0, 0, 0.8);
+  border: 1px solid #ff0000;
+}
+
+.dark-progress .progress-fill {
+  background: linear-gradient(90deg, #ff0000 0%, #ff4444 100%);
+  box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+}
+
+.dark-work-btn {
+  background: linear-gradient(135deg, #8b0000 0%, #ff0000 100%);
+  color: white;
+  border: 2px solid #ff0000;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Orbitron', monospace;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+}
+
+.dark-work-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff0000 0%, #ff4444 100%);
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.7);
+  transform: translateY(-2px);
+}
+
+.dark-work-btn:disabled {
+  background: #444;
+  color: #888;
+  border-color: #666;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.3; }
+}
+
 /* 面板头部 */
 .panel-header {
   display: flex;
@@ -2715,6 +2871,34 @@ export default {
   background: rgba(255, 255, 255, 0.95);
   border: 2px solid #8b4513;
   box-shadow: 0 8px 25px rgba(139, 69, 19, 0.2);
+}
+
+/* 传统主题黑心中介面板样式 */
+.theme-traditional .dark-agency-panel {
+  background: rgba(255, 240, 230, 0.95);
+  border: 2px solid #8b0000;
+  box-shadow: 0 8px 25px rgba(139, 0, 0, 0.3);
+}
+
+.theme-traditional .dark-header h3 {
+  color: #8b0000;
+  text-shadow: none;
+  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
+}
+
+.theme-traditional .dark-pay {
+  color: #ff8c00;
+  text-shadow: none;
+}
+
+.theme-traditional .dark-cost {
+  color: #dc143c;
+}
+
+.theme-traditional .dark-work-btn {
+  background: linear-gradient(135deg, #dc143c 0%, #ff6347 100%);
+  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
+  text-shadow: none;
 }
 
 .theme-traditional .panel-header h3 {
@@ -6114,6 +6298,82 @@ export default {
   50% { transform: scale(1.1); }
 }
 
+/* 标题区域样式 */
+.title-section {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  z-index: 1000;
+  width: 100%;
+  max-width: 800px;
+  padding: 0 20px;
+}
+
+.main-title {
+  font-size: 3rem;
+  font-weight: bold;
+  margin: 0 0 10px 0;
+  text-shadow: 0 0 20px currentColor;
+  animation: titleGlow 3s ease-in-out infinite alternate;
+}
+
+.subtitle {
+  font-size: 1.3rem;
+  margin: 0;
+  opacity: 0.9;
+  font-style: italic;
+}
+
+/* 赛博朋克主题标题 */
+.cyber-title {
+  background: linear-gradient(45deg, #00ffff, #ff00ff, #00ffff);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: titleGradient 4s ease-in-out infinite, titleGlow 3s ease-in-out infinite alternate;
+  font-family: 'Orbitron', monospace;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.cyber-subtitle {
+  color: #00ffff;
+  font-family: 'Orbitron', monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* 传统主题标题 */
+.traditional-title {
+  color: #8b4513;
+  font-family: 'Microsoft YaHei', sans-serif;
+  text-shadow: 2px 2px 4px rgba(139, 69, 19, 0.3);
+}
+
+.traditional-subtitle {
+  color: #a0522d;
+  font-family: 'Microsoft YaHei', sans-serif;
+}
+
+/* 标题动画 */
+@keyframes titleGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes titleGlow {
+  from { 
+    text-shadow: 0 0 20px currentColor, 0 0 30px currentColor; 
+  }
+  to { 
+    text-shadow: 0 0 30px currentColor, 0 0 40px currentColor, 0 0 50px currentColor; 
+  }
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .death-modal {
@@ -6141,6 +6401,20 @@ export default {
   .restart-btn, .reflect-btn {
     width: 100%;
     justify-content: center;
+  }
+  
+  /* 移动端标题调整 */
+  .title-section {
+    top: 10px;
+    padding: 0 10px;
+  }
+  
+  .main-title {
+    font-size: 2rem;
+  }
+  
+  .subtitle {
+    font-size: 1rem;
   }
 }
 </style> 

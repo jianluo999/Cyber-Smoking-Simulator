@@ -14,6 +14,9 @@ public class UserDataService {
     @Autowired
     private UserDataRepository userDataRepository;
     
+    @Autowired
+    private AchievementService achievementService;
+    
     // 获取用户数据，如果不存在则创建新用户
     public UserData getUserData(String sessionId) {
         return userDataRepository.findBySessionId(sessionId)
@@ -155,11 +158,8 @@ public class UserDataService {
         userData.setHospitalVisits(userData.getHospitalVisits() + 1);
         userData.setNeedsHospital(false);
         
-        // 检查成就
-        checkHospitalAchievements(userData);
-        checkSmokingAchievements(userData);
-        checkWorkAchievements(userData);
-        checkDonationAchievements(userData);
+        // 检查所有成就
+        checkAllAchievements(userData);
         
         return saveUserData(userData);
     }
@@ -183,11 +183,8 @@ public class UserDataService {
         // 增加义工时间
         userData.setVolunteerHours(userData.getVolunteerHours() + 1);
         
-        // 检查成就
-        checkVolunteerAchievements(userData);
-        checkSmokingAchievements(userData);
-        checkWorkAchievements(userData);
-        checkDonationAchievements(userData);
+        // 检查所有成就
+        checkAllAchievements(userData);
         
         return saveUserData(userData);
     }
@@ -198,6 +195,13 @@ public class UserDataService {
         UserData userData = getUserData(sessionId);
         userData.setCurrentDay(userData.getCurrentDay() + 1);
         
+        // 时间推进的效果：增加健康度但减少寿命
+        userData.setLungHealth(Math.min(100.0, userData.getLungHealth() + 1.5));
+        userData.setHeartHealth(Math.min(100.0, userData.getHeartHealth() + 1.5));
+        userData.setLiverHealth(Math.min(100.0, userData.getLiverHealth() + 1.0));
+        userData.setImmunity(Math.min(100.0, userData.getImmunity() + 1.2));
+        userData.setLifeExpectancy(Math.max(30.0, userData.getLifeExpectancy() - 0.3)); // 减少寿命
+        
         // 检查是否一周未去医院，如果是则开始健康衰退
         if (!userData.hasVisitedHospitalThisWeek() && userData.shouldGoToHospital()) {
             // 每天衰退
@@ -207,11 +211,8 @@ public class UserDataService {
             userData.setNeedsHospital(true);
         }
         
-        // 检查时间相关成就
-        checkTimeAchievements(userData);
-        checkSmokingAchievements(userData);
-        checkWorkAchievements(userData);
-        checkDonationAchievements(userData);
+        // 检查所有成就
+        checkAllAchievements(userData);
         
         return saveUserData(userData);
     }
@@ -220,17 +221,27 @@ public class UserDataService {
     private void checkHospitalAchievements(UserData userData) {
         // 首次就医
         if (userData.getHospitalVisits() == 1) {
-            userData.addAchievement("first_hospital_visit");
+            addAchievementWithScore(userData, "first_hospital_visit");
         }
         
         // 常客 - 访问医院10次
         if (userData.getHospitalVisits() >= 10) {
-            userData.addAchievement("hospital_regular");
+            addAchievementWithScore(userData, "hospital_regular");
         }
         
         // 健康意识 - 主动就医（健康未到危险线就去医院）
         if (!userData.shouldGoToHospital()) {
-            userData.addAchievement("health_conscious");
+            addAchievementWithScore(userData, "health_conscious");
+        }
+        
+        // 医院专家 - 访问医院50次
+        if (userData.getHospitalVisits() >= 50) {
+            addAchievementWithScore(userData, "hospital_expert");
+        }
+        
+        // 医院之主 - 访问医院100次
+        if (userData.getHospitalVisits() >= 100) {
+            addAchievementWithScore(userData, "hospital_master");
         }
     }
     
@@ -238,17 +249,22 @@ public class UserDataService {
     private void checkVolunteerAchievements(UserData userData) {
         // 爱心使者 - 第一次义工
         if (userData.getVolunteerHours() == 1) {
-            userData.addAchievement("first_volunteer");
+            addAchievementWithScore(userData, "first_volunteer");
         }
         
         // 义工达人 - 义工50小时
         if (userData.getVolunteerHours() >= 50) {
-            userData.addAchievement("volunteer_master");
+            addAchievementWithScore(userData, "volunteer_master");
         }
         
         // 无私奉献 - 义工100小时
         if (userData.getVolunteerHours() >= 100) {
-            userData.addAchievement("selfless_dedication");
+            addAchievementWithScore(userData, "selfless_dedication");
+        }
+        
+        // 圣人 - 义工500小时
+        if (userData.getVolunteerHours() >= 500) {
+            addAchievementWithScore(userData, "saint");
         }
     }
     
@@ -256,17 +272,27 @@ public class UserDataService {
     private void checkTimeAchievements(UserData userData) {
         // 坚持一周
         if (userData.getCurrentDay() == 7) {
-            userData.addAchievement("survive_week");
+            addAchievementWithScore(userData, "survive_week");
         }
         
         // 坚持一月
         if (userData.getCurrentDay() == 30) {
-            userData.addAchievement("survive_month");
+            addAchievementWithScore(userData, "survive_month");
         }
         
         // 百日人生
         if (userData.getCurrentDay() == 100) {
-            userData.addAchievement("hundred_days");
+            addAchievementWithScore(userData, "hundred_days");
+        }
+        
+        // 坚持一年
+        if (userData.getCurrentDay() == 365) {
+            addAchievementWithScore(userData, "survive_year");
+        }
+        
+        // 永恒传说
+        if (userData.getCurrentDay() == 1000) {
+            addAchievementWithScore(userData, "eternal_legend");
         }
     }
     
@@ -274,17 +300,32 @@ public class UserDataService {
     public void checkSmokingAchievements(UserData userData) {
         // 不幸的开始 - 第一次吸烟
         if (userData.getTotalSmokes() == 1) {
-            userData.addAchievement("first_smoke");
+            addAchievementWithScore(userData, "first_smoke");
         }
         
         // 沉沦 - 吸烟100支
         if (userData.getTotalSmokes() == 100) {
-            userData.addAchievement("heavy_smoker");
+            addAchievementWithScore(userData, "heavy_smoker");
         }
         
         // 无法自拔 - 吸烟500支
         if (userData.getTotalSmokes() == 500) {
-            userData.addAchievement("addicted");
+            addAchievementWithScore(userData, "addicted");
+        }
+        
+        // 烟鬼 - 吸烟1000支
+        if (userData.getTotalSmokes() == 1000) {
+            addAchievementWithScore(userData, "smoke_devil");
+        }
+        
+        // 烟王 - 吸烟5000支
+        if (userData.getTotalSmokes() == 5000) {
+            addAchievementWithScore(userData, "smoke_king");
+        }
+        
+        // 烟神 - 吸烟10000支
+        if (userData.getTotalSmokes() == 10000) {
+            addAchievementWithScore(userData, "smoke_god");
         }
     }
     
@@ -292,25 +333,140 @@ public class UserDataService {
     public void checkWorkAchievements(UserData userData) {
         // 努力工作者 - 完成50次工作
         if (userData.getTotalWorkDays() >= 50) {
-            userData.addAchievement("hard_worker");
+            addAchievementWithScore(userData, "hard_worker");
         }
         
         // 工作狂 - 完成200次工作
         if (userData.getTotalWorkDays() >= 200) {
-            userData.addAchievement("workaholic");
+            addAchievementWithScore(userData, "workaholic");
+        }
+        
+        // 工作机器 - 完成500次工作
+        if (userData.getTotalWorkDays() >= 500) {
+            addAchievementWithScore(userData, "work_machine");
+        }
+        
+        // 劳模 - 完成1000次工作
+        if (userData.getTotalWorkDays() >= 1000) {
+            addAchievementWithScore(userData, "labor_model");
         }
     }
     
     // 检查捐赠相关成就
     public void checkDonationAchievements(UserData userData) {
-        // 善心萌发 - 第一次捐赠
+                // 善心萌发 - 第一次捐赠
         if (userData.getTotalDonations() == 1) {
-            userData.addAchievement("first_donation");
+            addAchievementWithScore(userData, "first_donation");
         }
         
         // 慈善家 - 捐赠50次
         if (userData.getTotalDonations() >= 50) {
-            userData.addAchievement("philanthropist");
+            addAchievementWithScore(userData, "philanthropist");
+        }
+        
+        // 慈善大师 - 捐赠200次
+        if (userData.getTotalDonations() >= 200) {
+            addAchievementWithScore(userData, "charity_master");
+        }
+     }
+     
+     // 检查财富相关成就
+     public void checkWealthAchievements(UserData userData) {
+         // 小富即安 - 拥有500元
+         if (userData.getMoney() >= 500) {
+             addAchievementWithScore(userData, "small_fortune");
+         }
+         
+         // 富翁 - 拥有2000元
+         if (userData.getMoney() >= 2000) {
+             addAchievementWithScore(userData, "rich_man");
+         }
+         
+         // 百万富翁 - 拥有10000元
+         if (userData.getMoney() >= 10000) {
+             addAchievementWithScore(userData, "millionaire");
+         }
+         
+         // 亿万富翁 - 拥有100000元
+         if (userData.getMoney() >= 100000) {
+             addAchievementWithScore(userData, "billionaire");
+         }
+     }
+     
+     // 检查健康相关成就
+     public void checkHealthAchievements(UserData userData) {
+         // 健康之王 - 所有健康指标都达到100
+         if (userData.getLungHealth() >= 100 && userData.getHeartHealth() >= 100 && 
+             userData.getLiverHealth() >= 100 && userData.getImmunity() >= 100) {
+             addAchievementWithScore(userData, "health_king");
+         }
+         
+         // 濒死体验 - 健康指标低于10
+         if (userData.getLungHealth() < 10 || userData.getHeartHealth() < 10 || 
+             userData.getLiverHealth() < 10 || userData.getImmunity() < 10) {
+             addAchievementWithScore(userData, "near_death");
+         }
+         
+         // 钢铁之躯 - 健康指标保持在90以上超过30天
+         if (userData.getLungHealth() >= 90 && userData.getHeartHealth() >= 90 && 
+             userData.getLiverHealth() >= 90 && userData.getImmunity() >= 90 && 
+             userData.getCurrentDay() >= 30) {
+             addAchievementWithScore(userData, "iron_body");
+         }
+         
+         // 长寿之星 - 预期寿命超过85岁
+         if (userData.getLifeExpectancy() >= 85) {
+             addAchievementWithScore(userData, "longevity_star");
+         }
+         
+         // 夭折之命 - 预期寿命低于50岁
+         if (userData.getLifeExpectancy() < 50) {
+             addAchievementWithScore(userData, "early_death");
+         }
+     }
+     
+     // 检查极限成就
+     public void checkExtremeAchievements(UserData userData) {
+         // 一日千支 - 一天内吸烟20支（极限）
+         if (userData.getTodaySmokes() >= 20) {
+             addAchievementWithScore(userData, "smoke_marathon");
+         }
+         
+         // 破产王 - 金钱为0
+         if (userData.getMoney() == 0) {
+             addAchievementWithScore(userData, "broke_king");
+         }
+         
+         // 终极囤积 - 香烟库存超过100支
+         if (userData.getCigaretteStock() >= 100) {
+             addAchievementWithScore(userData, "ultimate_hoarder");
+         }
+         
+         // 生死边缘 - 所有健康指标都低于20
+         if (userData.getLungHealth() < 20 && userData.getHeartHealth() < 20 && 
+             userData.getLiverHealth() < 20 && userData.getImmunity() < 20) {
+             addAchievementWithScore(userData, "edge_of_death");
+         }
+     }
+    
+    // 检查所有成就
+    public void checkAllAchievements(UserData userData) {
+        checkHospitalAchievements(userData);
+        checkVolunteerAchievements(userData);
+        checkTimeAchievements(userData);
+        checkSmokingAchievements(userData);
+        checkWorkAchievements(userData);
+        checkDonationAchievements(userData);
+        checkWealthAchievements(userData);
+        checkHealthAchievements(userData);
+        checkExtremeAchievements(userData);
+    }
+    
+    // 添加成就辅助方法
+    private void addAchievementWithScore(UserData userData, String achievementId) {
+        if (!userData.hasAchievement(achievementId)) {
+            int score = achievementService.getAchievementScore(achievementId);
+            userData.addAchievement(achievementId, score);
         }
     }
 } 
