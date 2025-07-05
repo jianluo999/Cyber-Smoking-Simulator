@@ -195,12 +195,15 @@ public class UserDataService {
         UserData userData = getUserData(sessionId);
         userData.setCurrentDay(userData.getCurrentDay() + 1);
         
-        // 时间推进的效果：增加健康度但减少寿命
+        // 时间推进的效果：增加健康度但减少寿命（带波动）
         userData.setLungHealth(Math.min(100.0, userData.getLungHealth() + 1.5));
         userData.setHeartHealth(Math.min(100.0, userData.getHeartHealth() + 1.5));
         userData.setLiverHealth(Math.min(100.0, userData.getLiverHealth() + 1.0));
         userData.setImmunity(Math.min(100.0, userData.getImmunity() + 1.2));
-        userData.setLifeExpectancy(Math.max(30.0, userData.getLifeExpectancy() - 0.3)); // 减少寿命
+        
+        // 寿命减少带随机波动：0.1-0.5年之间
+        double lifeDecrease = 0.1 + Math.random() * 0.4; // 0.1到0.5年的随机波动
+        userData.setLifeExpectancy(Math.max(30.0, userData.getLifeExpectancy() - lifeDecrease));
         
         // 检查是否一周未去医院，如果是则开始健康衰退
         if (!userData.hasVisitedHospitalThisWeek() && userData.shouldGoToHospital()) {

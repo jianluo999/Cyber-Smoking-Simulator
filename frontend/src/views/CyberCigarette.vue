@@ -1096,7 +1096,7 @@ export default {
         // 显示推进一天的效果弹窗
         showCustomAlert({
           title: '🌅 时间推进',
-          message: `新的一天开始了！健康得到了一些恢复，但时间也在流逝...\n健康度略微增加，寿命减少0.3年`,
+          message: `新的一天开始了！健康得到了一些恢复，但时间也在流逝...\n健康度略微增加，寿命随机减少0.1-0.5年`,
           type: 'info',
           confirmText: '知道了'
         })
@@ -1629,7 +1629,7 @@ export default {
     }
 
     // 停止吸烟
-    const stopSmoking = () => {
+    const stopSmoking = async () => {
       isSmoking.value = false
       ashProgress.value = 0
       smokingProgress.value = 0
@@ -1651,6 +1651,39 @@ export default {
       if (progressInterval) {
         clearInterval(progressInterval)
         progressInterval = null
+      }
+      
+      // 吸烟完成后自动推进一天
+      try {
+        const response = await axios.post('/api/user/advance-day', null, {
+          params: { sessionId: sessionId.value }
+        })
+        
+        timeSystem.currentDay = response.data.currentDay
+        timeSystem.needsHospital = response.data.needsHospital
+        
+        // 更新所有健康数据
+        health.lungHealth = response.data.lungHealth
+        health.heartHealth = response.data.heartHealth
+        health.liverHealth = response.data.liverHealth
+        health.immunity = response.data.immunity
+        health.lifeExpectancy = response.data.lifeExpectancy
+        
+        // 显示吸烟导致时间推进的弹窗
+        showCustomAlert({
+          title: '⏰ 时间流逝',
+          message: `吸烟让您失去了意识...一天过去了！\n天数：第${timeSystem.currentDay}天\n健康有所恢复，但寿命在流逝...`,
+          type: 'warning',
+          confirmText: '醒悟过来'
+        })
+        
+        // 检查成就
+        checkForNewAchievements()
+        
+        // 检查是否死亡（在数据更新后）
+        checkDeath()
+      } catch (error) {
+        console.error('推进时间失败:', error)
       }
       
       // 清理烟雾效果
