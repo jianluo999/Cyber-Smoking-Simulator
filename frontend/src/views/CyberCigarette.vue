@@ -33,6 +33,89 @@
       </div>
     </div>
 
+    <!-- 左侧小卖部 -->
+    <div class="shop-panel left-panel">
+      <div class="panel-header">
+        <h3>小卖部</h3>
+        <button @click="toggleShop" class="shop-btn">
+          {{ shop.isOpen ? '关闭' : '购买香烟' }}
+        </button>
+      </div>
+      <div class="shop-money">
+        <span>💰 金钱: ¥{{ economy.money }}</span>
+      </div>
+      <div class="shop-stock">
+        <span>🚬 香烟库存: {{ economy.cigaretteStock }}支</span>
+      </div>
+      <div class="shop-content" v-if="shop.isOpen">
+        <div class="shop-item" v-for="item in shop.items" :key="item.id">
+          <div class="item-info">
+            <h4>{{ item.name }}</h4>
+            <p>{{ item.description }}</p>
+            <span class="price">¥{{ item.price }}</span>
+            <span class="quantity">库存: {{ item.quantity }}</span>
+          </div>
+          <button @click="buyItem(item)" 
+                  :disabled="economy.money < item.price || item.quantity <= 0"
+                  class="buy-btn">
+            购买
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧健康面板 -->
+    <div class="health-panel right-panel">
+      <div class="panel-header">
+        <h3>健康状况</h3>
+        <div class="health-warning" v-if="health.lungHealth < 50">
+          ⚠️ 健康危险
+        </div>
+      </div>
+      <div class="health-stats">
+        <div class="health-item">
+          <span class="health-label">🫁 肺部健康</span>
+          <div class="health-bar">
+            <div class="health-fill lung" :style="{ width: health.lungHealth + '%' }"></div>
+          </div>
+          <span class="health-value">{{ Math.round(health.lungHealth) }}%</span>
+        </div>
+        <div class="health-item">
+          <span class="health-label">❤️ 心脏健康</span>
+          <div class="health-bar">
+            <div class="health-fill heart" :style="{ width: health.heartHealth + '%' }"></div>
+          </div>
+          <span class="health-value">{{ Math.round(health.heartHealth) }}%</span>
+        </div>
+        <div class="health-item">
+          <span class="health-label">🫀 肝脏健康</span>
+          <div class="health-bar">
+            <div class="health-fill liver" :style="{ width: health.liverHealth + '%' }"></div>
+          </div>
+          <span class="health-value">{{ Math.round(health.liverHealth) }}%</span>
+        </div>
+        <div class="health-item">
+          <span class="health-label">🩸 血压</span>
+          <div class="health-number">{{ Math.round(health.bloodPressure) }} mmHg</div>
+        </div>
+        <div class="health-item">
+          <span class="health-label">🫁 血氧</span>
+          <div class="health-number">{{ Math.round(health.oxygenLevel) }}%</div>
+        </div>
+        <div class="health-item">
+          <span class="health-label">🛡️ 免疫力</span>
+          <div class="health-bar">
+            <div class="health-fill immunity" :style="{ width: health.immunity + '%' }"></div>
+          </div>
+          <span class="health-value">{{ Math.round(health.immunity) }}%</span>
+        </div>
+        <div class="health-item life-expectancy">
+          <span class="health-label">⏰ 预期寿命</span>
+          <div class="health-number">{{ Math.round(health.lifeExpectancy) }}岁</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 主要香烟区域 -->
     <div class="cigarette-stage">
       <div class="hologram-frame">
@@ -119,6 +202,27 @@
       </button>
     </div>
 
+    <!-- 左下角工地 -->
+    <div class="work-panel left-bottom-panel">
+      <div class="panel-header">
+        <h3>🏗️ 工地打工</h3>
+        <div class="work-pay">💵 ¥{{ economy.workPay }}/次</div>
+      </div>
+      <div class="work-content">
+        <div class="work-progress" v-if="economy.isWorking">
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: economy.workProgress + '%' }"></div>
+          </div>
+          <span>工作中... {{ economy.workProgress }}%</span>
+        </div>
+        <button @click="startWork" 
+                :disabled="economy.isWorking"
+                class="work-btn">
+          {{ economy.isWorking ? '工作中...' : '开始工作' }}
+        </button>
+      </div>
+    </div>
+
 
   </div>
 </template>
@@ -142,6 +246,38 @@ export default {
     const stats = reactive({
       todaySmokes: 0,
       totalSmokes: 0
+    })
+
+    // 经济系统
+    const economy = reactive({
+      money: 100, // 初始金钱
+      cigaretteStock: 0, // 香烟库存
+      cigarettePrice: 20, // 香烟价格（每包）
+      workPay: 50, // 打工收入
+      isWorking: false, // 是否正在打工
+      workProgress: 0 // 打工进度
+    })
+
+    // 健康系统
+    const health = reactive({
+      lungHealth: 100, // 肺部健康
+      heartHealth: 100, // 心脏健康
+      liverHealth: 100, // 肝脏健康
+      bloodPressure: 120, // 血压
+      oxygenLevel: 98, // 血氧水平
+      immunity: 100, // 免疫力
+      lifeExpectancy: 80, // 预期寿命
+      smokingDamage: 0 // 累积吸烟损害
+    })
+
+    // 商店系统
+    const shop = reactive({
+      isOpen: false, // 是否打开商店
+      items: [
+        { id: 1, name: '普通香烟', price: 20, quantity: 20, description: '最便宜的香烟' },
+        { id: 2, name: '高档香烟', price: 50, quantity: 10, description: '更高档的香烟' },
+        { id: 3, name: '进口香烟', price: 80, quantity: 5, description: '昂贵的进口香烟' }
+      ]
     })
     
     let smokeInterval = null
@@ -217,6 +353,60 @@ export default {
       document.body.className = `theme-${currentTheme.value}`
     }
 
+    // 商店功能
+    const toggleShop = () => {
+      shop.isOpen = !shop.isOpen
+    }
+
+    const buyItem = (item) => {
+      if (economy.money >= item.price && item.quantity > 0) {
+        economy.money -= item.price
+        economy.cigaretteStock += item.quantity
+        item.quantity = Math.max(0, item.quantity - 1)
+        
+        // 补充库存
+        setTimeout(() => {
+          if (item.quantity < 10) {
+            item.quantity += 1
+          }
+        }, 30000) // 30秒后补充一支
+      }
+    }
+
+    // 打工功能
+    const startWork = () => {
+      if (economy.isWorking) return
+      
+      economy.isWorking = true
+      economy.workProgress = 0
+      
+      const workInterval = setInterval(() => {
+        economy.workProgress += 2
+        
+        if (economy.workProgress >= 100) {
+          economy.money += economy.workPay
+          economy.isWorking = false
+          economy.workProgress = 0
+          clearInterval(workInterval)
+        }
+      }, 100) // 5秒完成一次打工
+    }
+
+    // 更新健康参数
+    const updateHealth = () => {
+      // 每次吸烟对健康的损害
+      const damage = Math.random() * 2 + 1
+      
+      health.lungHealth = Math.max(0, health.lungHealth - damage)
+      health.heartHealth = Math.max(0, health.heartHealth - damage * 0.8)
+      health.liverHealth = Math.max(0, health.liverHealth - damage * 0.5)
+      health.bloodPressure = Math.min(200, health.bloodPressure + damage * 0.5)
+      health.oxygenLevel = Math.max(70, health.oxygenLevel - damage * 0.3)
+      health.immunity = Math.max(0, health.immunity - damage * 0.6)
+      health.lifeExpectancy = Math.max(40, health.lifeExpectancy - damage * 0.1)
+      health.smokingDamage += damage
+    }
+
     // 创建烟雾粒子
     const createSmokeParticle = () => {
       const particle = {
@@ -271,6 +461,18 @@ export default {
     // 开始吸烟
     const smoke = async () => {
       if (isSmoking.value) return
+      
+      // 检查是否有香烟库存
+      if (economy.cigaretteStock <= 0) {
+        alert('没有香烟了！请先到小卖部购买香烟。')
+        return
+      }
+      
+      // 消耗一支香烟
+      economy.cigaretteStock -= 1
+      
+      // 影响健康
+      updateHealth()
       
       isSmoking.value = true
       ashProgress.value = 0
@@ -420,6 +622,9 @@ export default {
       smokeStreams,
       smokeWisps,
       stats,
+      economy,
+      health,
+      shop,
       currentTheme,
       themeConfig,
       ashProgress,
@@ -433,7 +638,10 @@ export default {
       progressClass,
       smoke,
       resetStats,
-      toggleTheme
+      toggleTheme,
+      toggleShop,
+      buyItem,
+      startWork
     }
   }
 }
@@ -743,6 +951,326 @@ export default {
   text-shadow: 1px 1px 2px rgba(139, 69, 19, 0.2);
   text-transform: none;
   letter-spacing: 0.5px;
+  }
+
+/* 侧边面板通用样式 */
+.left-panel, .right-panel {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 300px;
+  background: rgba(0, 20, 40, 0.9);
+  border: 2px solid var(--cyber-cyan);
+  border-radius: 15px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.left-panel {
+  left: 20px;
+}
+
+.right-panel {
+  right: 20px;
+}
+
+.left-bottom-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 280px;
+  background: rgba(0, 20, 40, 0.9);
+  border: 2px solid var(--cyber-cyan);
+  border-radius: 15px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+/* 面板头部 */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  border-bottom: 1px solid var(--cyber-cyan);
+  padding-bottom: 10px;
+}
+
+.panel-header h3 {
+  color: var(--cyber-cyan);
+  margin: 0;
+  font-size: 1.2rem;
+  text-shadow: 0 0 10px var(--cyber-cyan);
+}
+
+/* 小卖部样式 */
+.shop-btn {
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid var(--cyber-cyan);
+  color: var(--cyber-cyan);
+  padding: 8px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.shop-btn:hover {
+  background: rgba(0, 255, 255, 0.2);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+}
+
+.shop-money, .shop-stock {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  color: var(--cyber-cyan);
+  font-weight: 600;
+}
+
+.shop-content {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.shop-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-info h4 {
+  color: var(--cyber-cyan);
+  margin: 0 0 5px 0;
+  font-size: 1rem;
+}
+
+.item-info p {
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 8px 0;
+  font-size: 0.85rem;
+}
+
+.price {
+  color: var(--cyber-pink);
+  font-weight: 700;
+  margin-right: 10px;
+}
+
+.quantity {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+}
+
+.buy-btn {
+  background: rgba(255, 0, 255, 0.1);
+  border: 1px solid var(--cyber-pink);
+  color: var(--cyber-pink);
+  padding: 8px 15px;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.buy-btn:hover:not(:disabled) {
+  background: rgba(255, 0, 255, 0.2);
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+}
+
+.buy-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 健康面板样式 */
+.health-warning {
+  color: #ff4444;
+  font-weight: 700;
+  text-shadow: 0 0 10px #ff4444;
+  animation: blink 1s infinite;
+}
+
+.health-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.health-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.health-label {
+  color: var(--cyber-cyan);
+  font-weight: 600;
+  font-size: 0.9rem;
+  min-width: 80px;
+}
+
+.health-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  margin: 0 10px;
+  overflow: hidden;
+}
+
+.health-fill {
+  height: 100%;
+  transition: width 0.5s ease;
+  border-radius: 4px;
+}
+
+.health-fill.lung {
+  background: linear-gradient(90deg, #ff4444, #ffaa44, #44ff44);
+}
+
+.health-fill.heart {
+  background: linear-gradient(90deg, #ff4444, #ff6666, #ff9999);
+}
+
+.health-fill.liver {
+  background: linear-gradient(90deg, #aa4444, #cc6666, #ee8888);
+}
+
+.health-fill.immunity {
+  background: linear-gradient(90deg, #4444ff, #6666ff, #8888ff);
+}
+
+.health-value {
+  color: var(--cyber-cyan);
+  font-weight: 700;
+  font-size: 0.9rem;
+  min-width: 40px;
+  text-align: right;
+}
+
+.health-number {
+  color: var(--cyber-pink);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.life-expectancy {
+  border: 2px solid var(--cyber-pink);
+  background: rgba(255, 0, 255, 0.1);
+}
+
+/* 工作面板样式 */
+.work-pay {
+  color: var(--cyber-pink);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.work-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.work-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.work-progress .progress-bar {
+  width: 100%;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--cyber-cyan);
+}
+
+.work-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyber-cyan), var(--cyber-pink));
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.work-progress span {
+  color: var(--cyber-cyan);
+  font-weight: 600;
+  text-align: center;
+}
+
+.work-btn {
+  background: rgba(0, 255, 0, 0.1);
+  border: 2px solid #00ff00;
+  color: #00ff00;
+  padding: 12px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  font-weight: 600;
+  text-shadow: 0 0 10px #00ff00;
+}
+
+.work-btn:hover:not(:disabled) {
+  background: rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+  transform: translateY(-2px);
+}
+
+.work-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* 传统主题面板样式 */
+.theme-traditional .left-panel,
+.theme-traditional .right-panel,
+.theme-traditional .left-bottom-panel {
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #8b4513;
+  box-shadow: 0 8px 25px rgba(139, 69, 19, 0.2);
+}
+
+.theme-traditional .panel-header h3 {
+  color: #2d2d2d;
+  text-shadow: none;
+  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
+}
+
+.theme-traditional .shop-money,
+.theme-traditional .shop-stock {
+  background: rgba(139, 69, 19, 0.1);
+  color: #2d2d2d;
+}
+
+.theme-traditional .health-label {
+  color: #2d2d2d;
+  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
+}
+
+.theme-traditional .health-value {
+  color: #8b4513;
 }
 
 .cyber-cigarette-container {
