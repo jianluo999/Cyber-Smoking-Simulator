@@ -808,7 +808,8 @@ export default {
       todaySmokes: 0,
       totalSmokes: 0,
       totalDonations: 0,
-      totalWorkDays: 0
+      totalWorkDays: 0,
+      smokingStreak: 0 // 连续吸烟计数器，用于每10次显示一次弹窗
     })
 
     // 经济系统
@@ -1296,18 +1297,36 @@ export default {
 
     // 更新健康参数
     const updateHealth = () => {
-      // 每次吸烟对健康的剧烈损害
+      // 基础伤害
       const baseDamage = Math.random() * 3 + 2 // 2-5的基础伤害
       
-      // 立即显著损害
-      health.lungHealth = Math.max(0, health.lungHealth - baseDamage * 1.5)
-      health.heartHealth = Math.max(0, health.heartHealth - baseDamage * 1.2)
-      health.liverHealth = Math.max(0, health.liverHealth - baseDamage * 0.8)
-      health.bloodPressure = Math.min(200, health.bloodPressure + baseDamage * 2)
-      health.oxygenLevel = Math.max(70, health.oxygenLevel - baseDamage * 1)
-      health.immunity = Math.max(0, health.immunity - baseDamage * 1.1)
-      health.lifeExpectancy = Math.max(30, health.lifeExpectancy - baseDamage * 0.4)
-      health.smokingDamage += baseDamage
+      // 计算指数损害系数，基于总吸烟次数
+      const smokeCount = stats.totalSmokes
+      // 指数增长公式：1 + 0.15 * log(吸烟次数/10 + 1)
+      const exponentialFactor = 1.0 + 0.15 * Math.log(smokeCount / 10.0 + 1.0)
+      
+      // 每次吸烟对健康的指数损害
+      const scaledDamage = baseDamage * exponentialFactor
+      
+      // 立即显著损害（随吸烟次数指数增长）
+      health.lungHealth = Math.max(0, health.lungHealth - scaledDamage * 1.5)
+      health.heartHealth = Math.max(0, health.heartHealth - scaledDamage * 1.2)
+      health.liverHealth = Math.max(0, health.liverHealth - scaledDamage * 0.8)
+      health.bloodPressure = Math.min(200, health.bloodPressure + scaledDamage * 2)
+      health.oxygenLevel = Math.max(70, health.oxygenLevel - scaledDamage * 1)
+      health.immunity = Math.max(0, health.immunity - scaledDamage * 1.1)
+      health.lifeExpectancy = Math.max(30, health.lifeExpectancy - scaledDamage * 0.4)
+      health.smokingDamage += scaledDamage
+      
+      // 显示指数损害提示（每50次吸烟提示一次）
+      if (smokeCount % 50 === 0 && smokeCount > 0) {
+        showCustomAlert({
+          title: '⚠️ 指数损害警告',
+          message: `您已经吸烟${smokeCount}次了！\n每次吸烟的损害现在是初始的${exponentialFactor.toFixed(1)}倍！\n健康下降速度正在急剧增加...`,
+          type: 'error',
+          confirmText: '我意识到了'
+        })
+      }
       
       // 检查是否死亡
       checkDeath()
@@ -1328,12 +1347,17 @@ export default {
         damageCount++
         const continuousDamage = Math.random() * 1 + 0.5 // 持续小伤害
         
-        // 每2秒造成一次损害
+        // 计算指数损害系数
+        const smokeCount = stats.totalSmokes
+        const exponentialFactor = 1.0 + 0.15 * Math.log(smokeCount / 10.0 + 1.0)
+        
+        // 每2秒造成一次损害（也使用指数增长）
         if (damageCount % 20 === 0) {
-          health.lungHealth = Math.max(0, health.lungHealth - continuousDamage * 0.8)
-          health.heartHealth = Math.max(0, health.heartHealth - continuousDamage * 0.6)
-          health.oxygenLevel = Math.max(70, health.oxygenLevel - continuousDamage * 0.5)
-          health.bloodPressure = Math.min(200, health.bloodPressure + continuousDamage * 0.8)
+          const scaledContinuousDamage = continuousDamage * exponentialFactor
+          health.lungHealth = Math.max(0, health.lungHealth - scaledContinuousDamage * 0.8)
+          health.heartHealth = Math.max(0, health.heartHealth - scaledContinuousDamage * 0.6)
+          health.oxygenLevel = Math.max(70, health.oxygenLevel - scaledContinuousDamage * 0.5)
+          health.bloodPressure = Math.min(200, health.bloodPressure + scaledContinuousDamage * 0.8)
         }
       }, 100) // 每100ms检查一次
     }
@@ -1653,9 +1677,12 @@ export default {
         progressInterval = null
       }
       
-      // 吸烟完成后自动推进一天
+      // 吸烟完成后自动推进一天（使用吸烟专用API）
       try {
-        const response = await axios.post('/api/user/advance-day', null, {
+        // 增加吸烟计数器
+        stats.smokingStreak += 1
+        
+        const response = await axios.post('/api/user/advance-day-smoking', null, {
           params: { sessionId: sessionId.value }
         })
         
@@ -1669,13 +1696,15 @@ export default {
         health.immunity = response.data.immunity
         health.lifeExpectancy = response.data.lifeExpectancy
         
-        // 显示吸烟导致时间推进的弹窗
-        showCustomAlert({
-          title: '⏰ 时间流逝',
-          message: `吸烟让您失去了意识...一天过去了！\n天数：第${timeSystem.currentDay}天\n健康有所恢复，但寿命在流逝...`,
-          type: 'warning',
-          confirmText: '醒悟过来'
-        })
+        // 每10次吸烟显示一次弹窗
+        if (stats.smokingStreak % 10 === 0) {
+          showCustomAlert({
+            title: '⚠️ 沉沦警告',
+            message: `您已经连续吸烟${stats.smokingStreak}次了！\n10天在烟雾中度过...\n健康持续恶化，寿命不断流逝...`,
+            type: 'error',
+            confirmText: '我知道了...'
+          })
+        }
         
         // 检查成就
         checkForNewAchievements()

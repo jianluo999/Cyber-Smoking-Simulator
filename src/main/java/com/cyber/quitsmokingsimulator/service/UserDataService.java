@@ -220,6 +220,43 @@ public class UserDataService {
         return saveUserData(userData);
     }
     
+    // 吸烟导致的推进一天时间（健康下降）
+    @Transactional
+    public UserData advanceDaySmoking(String sessionId) {
+        UserData userData = getUserData(sessionId);
+        userData.setCurrentDay(userData.getCurrentDay() + 1);
+        
+        // 计算指数损害系数，基于总吸烟次数
+        int smokeCount = userData.getTotalSmokes();
+        // 指数增长公式：1 + 0.15 * log(吸烟次数/10 + 1)
+        double exponentialFactor = 1.0 + 0.15 * Math.log(smokeCount / 10.0 + 1.0);
+        
+        // 吸烟导致的时间推进：健康下降（指数增长），寿命也减少
+        userData.setLungHealth(Math.max(0.0, userData.getLungHealth() - 0.8 * exponentialFactor));
+        userData.setHeartHealth(Math.max(0.0, userData.getHeartHealth() - 0.6 * exponentialFactor));
+        userData.setLiverHealth(Math.max(0.0, userData.getLiverHealth() - 0.4 * exponentialFactor));
+        userData.setImmunity(Math.max(0.0, userData.getImmunity() - 0.7 * exponentialFactor));
+        
+        // 吸烟推进时寿命减少更多，带随机波动：0.2-0.7年之间，并考虑指数因子
+        double baseLifeDecrease = 0.2 + Math.random() * 0.5; // 0.2到0.7年的随机波动
+        double lifeDecrease = baseLifeDecrease * exponentialFactor;
+        userData.setLifeExpectancy(Math.max(30.0, userData.getLifeExpectancy() - lifeDecrease));
+        
+        // 检查是否一周未去医院，如果是则开始健康衰退
+        if (!userData.hasVisitedHospitalThisWeek() && userData.shouldGoToHospital()) {
+            // 每天衰退
+            userData.setLungHealth(Math.max(0.0, userData.getLungHealth() - 2));
+            userData.setHeartHealth(Math.max(0.0, userData.getHeartHealth() - 2));
+            userData.setLifeExpectancy(Math.max(30.0, userData.getLifeExpectancy() - 0.5));
+            userData.setNeedsHospital(true);
+        }
+        
+        // 检查所有成就
+        checkAllAchievements(userData);
+        
+        return saveUserData(userData);
+    }
+    
     // 检查医院相关成就
     private void checkHospitalAchievements(UserData userData) {
         // 首次就医

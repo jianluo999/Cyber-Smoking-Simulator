@@ -120,6 +120,21 @@ public class UserDataController {
         }
     }
     
+    // 吸烟导致的推进一天（健康下降）
+    @PostMapping("/advance-day-smoking")
+    public ResponseEntity<UserData> advanceDaySmoking(@RequestParam String sessionId) {
+        System.out.println("吸烟推进一天接口被调用，sessionId: " + sessionId);
+        try {
+            UserData userData = userDataService.advanceDaySmoking(sessionId);
+            System.out.println("吸烟推进一天成功，当前天数: " + userData.getCurrentDay());
+            return ResponseEntity.ok(userData);
+        } catch (Exception e) {
+            System.err.println("吸烟推进一天失败: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(null);
+        }
+    }
+    
     // 获取成就列表
     @GetMapping("/achievements")
     public ResponseEntity<Map<String, Object>> getAchievements(@RequestParam String sessionId) {
