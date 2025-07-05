@@ -525,6 +525,62 @@
       </div>
     </div>
 
+    <!-- 捐赠结果弹窗 -->
+    <div v-if="showDonationModal" class="modal-overlay" @click="closeDonationModal">
+      <div class="donation-result-modal" @click.stop>
+        <div class="donation-school">
+          <!-- 破旧的小学建筑 -->
+          <div class="school-building">
+            <div class="roof"></div>
+            <div class="main-building">
+              <div class="window broken-window"></div>
+              <div class="window broken-window"></div>
+              <div class="door old-door"></div>
+              <div class="window broken-window"></div>
+              <div class="window broken-window"></div>
+            </div>
+            <div class="school-fence"></div>
+          </div>
+          
+          <h3>感谢您的善心捐赠！</h3>
+          <p>您为这所破旧的小学带来了希望...</p>
+          <div class="floating-hearts">
+            <div class="heart">❤️</div>
+            <div class="heart">💛</div>
+            <div class="heart">💚</div>
+          </div>
+        </div>
+        <button @click="closeDonationModal" class="close-donation-btn">关闭</button>
+      </div>
+    </div>
+
+    <!-- 自定义弹窗组件 -->
+    <div v-if="customAlert.show" class="modal-overlay custom-alert-overlay" @click="closeCustomAlert">
+      <div class="custom-alert-modal" :class="[customAlert.type, currentTheme]" @click.stop>
+        <div class="alert-header">
+          <div class="alert-icon">
+            <span v-if="customAlert.type === 'success'">✅</span>
+            <span v-else-if="customAlert.type === 'error'">❌</span>
+            <span v-else-if="customAlert.type === 'warning'">⚠️</span>
+            <span v-else-if="customAlert.type === 'info'">ℹ️</span>
+          </div>
+          <h3 class="alert-title">{{ customAlert.title }}</h3>
+        </div>
+        
+        <div class="alert-content">
+          <p class="alert-message">{{ customAlert.message }}</p>
+        </div>
+        
+        <div class="alert-actions">
+          <button @click="closeCustomAlert" class="alert-btn confirm-btn" :class="currentTheme">
+            {{ customAlert.confirmText || '确定' }}
+          </button>
+          <button v-if="customAlert.showCancel" @click="cancelCustomAlert" class="alert-btn cancel-btn" :class="currentTheme">
+            {{ customAlert.cancelText || '取消' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -539,32 +595,90 @@ export default {
     const smokeParticles = ref([])
     const smokeStreams = ref([])
     const smokeWisps = ref([])
-
-    const ashProgress = ref(0) // 灰烬进度 0-100%
-    const smokingProgress = ref(0)
-    const timeRemaining = ref(0)
-    
-    // 死亡和捐赠状态
     const isDead = ref(false)
     const isDonating = ref(false)
     const showReflectionModal = ref(false)
     const showDonationModal = ref(false)
-    
-    // 用户会话管理
-    const sessionId = ref('')
+
+    // 进度条相关
+    const ashProgress = ref(0)
+    const smokingProgress = ref(0)
+    const timeRemaining = ref(5)
+
+    // 吸烟时长
+    let smokingDuration = 15 // 增加到15秒
+
+    // 加载状态
     const isDataLoaded = ref(false)
     const lastSaveTime = ref(0)
-    
+
     // 主题系统
-    const currentTheme = ref('cyber')
-    
+    const currentTheme = ref('cyber') // 'cyber' 或 'traditional'
+
+    // Session ID
+    const sessionId = ref('')
+
+    // 自定义弹窗系统
+    const customAlert = reactive({
+      show: false,
+      title: '',
+      message: '',
+      type: 'info', // 'success', 'error', 'warning', 'info'
+      confirmText: '确定',
+      cancelText: '取消',
+      showCancel: false,
+      onConfirm: null,
+      onCancel: null
+    })
+
+    // 显示自定义弹窗
+    const showCustomAlert = (options) => {
+      customAlert.title = options.title || '提示'
+      customAlert.message = options.message || ''
+      customAlert.type = options.type || 'info'
+      customAlert.confirmText = options.confirmText || '确定'
+      customAlert.cancelText = options.cancelText || '取消'
+      customAlert.showCancel = options.showCancel || false
+      customAlert.onConfirm = options.onConfirm || null
+      customAlert.onCancel = options.onCancel || null
+      customAlert.show = true
+    }
+
+    // 关闭自定义弹窗
+    const closeCustomAlert = () => {
+      if (customAlert.onConfirm) {
+        customAlert.onConfirm()
+      }
+      customAlert.show = false
+      customAlert.onConfirm = null
+      customAlert.onCancel = null
+    }
+
+    // 取消自定义弹窗
+    const cancelCustomAlert = () => {
+      if (customAlert.onCancel) {
+        customAlert.onCancel()
+      }
+      customAlert.show = false
+      customAlert.onConfirm = null
+      customAlert.onCancel = null
+    }
+
     // 主题配置
     const themeConfig = computed(() => ({
-      title: currentTheme.value === 'cyber' ? '赛博戒烟模拟器' : '戒烟模拟器',
-      subtitle: currentTheme.value === 'cyber' ? '未来科技体验' : '健康生活从戒烟开始'
+      cyber: {
+        title: '🚬 赛博戒烟模拟器',
+        subtitle: '- 未来科技体验版 -',
+        hint: '点击香烟开始模拟吸烟'
+      },
+      traditional: {
+        title: '🚬 戒烟模拟器',
+        subtitle: '- 健康生活从戒烟开始 -',
+        hint: '点击香烟开始模拟吸烟'
+      }
     }))
-    
-    // 样式类
+
+    // 计算样式类
     const titleClass = computed(() => ({
       'cyber-title': currentTheme.value === 'cyber',
       'traditional-title': currentTheme.value === 'traditional'
@@ -576,7 +690,7 @@ export default {
     }))
     
     const hintClass = computed(() => ({
-      'neon-text pulse': currentTheme.value === 'cyber',
+      'cyber-hint': currentTheme.value === 'cyber',
       'traditional-hint': currentTheme.value === 'traditional'
     }))
     
@@ -594,7 +708,7 @@ export default {
       'cyber-progress': currentTheme.value === 'cyber',
       'traditional-progress': currentTheme.value === 'traditional'
     }))
-    
+
     // 时间系统
     const timeSystem = reactive({
       currentDay: 1,
@@ -675,7 +789,6 @@ export default {
     let wispInterval = null
     let progressInterval = null
     let animationFrame = null
-    let smokingDuration = 5 // 吸烟总时长（秒）
 
     // 主题切换函数
     const toggleTheme = () => {
@@ -696,7 +809,11 @@ export default {
     // 就医治疗
     const visitHospital = async () => {
       if (economy.money < 200) {
-        alert('您的金钱不足，无法支付医疗费用！需要200元。')
+        showCustomAlert({
+          title: '资金不足',
+          message: '您的金钱不足，无法支付医疗费用！需要200元。',
+          type: 'warning'
+        })
         return
       }
       
@@ -716,11 +833,19 @@ export default {
         timeSystem.lastHospitalDay = response.data.lastHospitalDay
         timeSystem.needsHospital = response.data.needsHospital
         
-        alert('治疗成功！您的健康状况得到了改善。')
+        showCustomAlert({
+          title: '治疗成功',
+          message: '治疗成功！您的健康状况得到了改善。',
+          type: 'success'
+        })
         checkForNewAchievements()
       } catch (error) {
         console.error('医院治疗失败:', error)
-        alert('治疗失败，请稍后重试。')
+        showCustomAlert({
+          title: '治疗失败',
+          message: '治疗失败，请稍后重试。',
+          type: 'error'
+        })
       }
     }
     
@@ -729,7 +854,11 @@ export default {
       if (hospitalSystem.isVolunteerWorking) return
       
       if (shouldGoToHospital()) {
-        alert('您的健康状况太差，无法进行义工服务，请先接受治疗！')
+        showCustomAlert({
+          title: '健康状况不佳',
+          message: '您的健康状况太差，无法进行义工服务，请先接受治疗！',
+          type: 'warning'
+        })
         return
       }
       
@@ -756,11 +885,19 @@ export default {
             health.lifeExpectancy = response.data.lifeExpectancy
             hospitalSystem.volunteerHours = response.data.volunteerHours
             
-            alert('义工服务完成！您的健康得到了改善，同时为社会做出了贡献。')
+            showCustomAlert({
+              title: '义工服务完成',
+              message: '义工服务完成！您的健康得到了改善，同时为社会做出了贡献。',
+              type: 'success'
+            })
             checkForNewAchievements()
           } catch (error) {
             console.error('义工服务失败:', error)
-            alert('义工服务失败，请稍后重试。')
+            showCustomAlert({
+              title: '义工服务失败',
+              message: '义工服务失败，请稍后重试。',
+              type: 'error'
+            })
           }
         }
       }, 100) // 5秒完成一次义工服务
@@ -847,7 +984,11 @@ export default {
       
       // 检查健康状况
       if (shouldGoToHospital()) {
-        alert('您的健康状况太差，无法工作！请先去医院治疗。')
+        showCustomAlert({
+          title: '健康状况不佳',
+          message: '您的健康状况太差，无法工作！请先去医院治疗。',
+          type: 'warning'
+        })
         return
       }
       
@@ -967,134 +1108,17 @@ export default {
         id: Date.now() + Math.random(),
         style: {
           left: `${47 + Math.random() * 6}%`,
-          bottom: '85%',
-          transform: `rotate(${Math.random() * 360}deg)`,
-          animationDelay: `${Math.random() * 1}s`,
+          bottom: '86%',
+          transform: `rotate(${Math.random() * 40 - 20}deg)`,
+          animationDelay: `${Math.random() * 0.2}s`,
           animationDuration: `${4 + Math.random() * 3}s`,
-          opacity: Math.random() * 0.6 + 0.4
+          opacity: Math.random() * 0.6 + 0.2
         },
-        class: `smoke-wisp-${Math.floor(Math.random() * 4) + 1}`
+        class: `smoke-wisp-${Math.floor(Math.random() * 2) + 1}`
       }
       return wisp
     }
 
-    // 死亡检查
-    const checkDeath = () => {
-      if (isDead.value) return
-      
-      // 如果寿命低于35岁，触发死亡
-      if (health.lifeExpectancy <= 35) {
-        isDead.value = true
-        isSmoking.value = false // 停止吸烟
-        economy.isWorking = false // 停止工作
-        
-        // 清除所有定时器
-        if (smokeInterval) clearInterval(smokeInterval)
-        if (streamInterval) clearInterval(streamInterval)
-        if (wispInterval) clearInterval(wispInterval)
-      }
-    }
-    
-    // 捐赠功能
-    const donate = () => {
-      if (economy.money < 100 || isDead.value) return
-      
-      economy.money -= 100
-      isDonating.value = true
-      
-      // 更新捐赠统计
-      stats.totalDonations += 1
-      
-      // 捐赠会恢复部分健康和寿命
-      health.lungHealth = Math.min(100, health.lungHealth + 5)
-      health.heartHealth = Math.min(100, health.heartHealth + 5)
-      health.liverHealth = Math.min(100, health.liverHealth + 3)
-      health.immunity = Math.min(100, health.immunity + 7)
-      health.lifeExpectancy = Math.min(85, health.lifeExpectancy + 2)
-      
-      // 检查捐赠相关成就
-      checkForNewAchievements()
-      
-      // 显示捐赠小学弹窗
-      showDonationModal.value = true
-      
-      // 希望动画效果
-      setTimeout(() => {
-        isDonating.value = false
-      }, 3000)
-    }
-    
-    // 关闭捐赠弹窗
-    const closeDonationModal = () => {
-      showDonationModal.value = false
-    }
-    
-    // 重新开始生命
-    const restartLife = async () => {
-      try {
-        // 调用后端重置接口
-        await resetUserDataToServer()
-        
-        // 重置死亡状态
-        showReflectionModal.value = false
-        
-        console.log('游戏重新开始')
-      } catch (error) {
-        console.error('重新开始失败:', error)
-        // 如果后端失败，使用本地重置
-        health.lungHealth = 100
-        health.heartHealth = 100
-        health.liverHealth = 100
-        health.bloodPressure = 120
-        health.oxygenLevel = 98
-        health.immunity = 100
-        health.lifeExpectancy = 80
-        health.smokingDamage = 0
-        
-        economy.money = 100
-        economy.cigaretteStock = 0
-        economy.isWorking = false
-        economy.workProgress = 0
-        
-        stats.todaySmokes = 0
-        stats.totalSmokes = 0
-        stats.totalDonations = 0
-        stats.totalWorkDays = 0
-        
-        // 重置时间系统
-        timeSystem.currentDay = 1
-        timeSystem.lastHospitalDay = 0
-        timeSystem.needsHospital = false
-        
-        // 重置医院系统
-        hospitalSystem.hospitalVisits = 0
-        hospitalSystem.volunteerHours = 0
-        hospitalSystem.isHospitalOpen = false
-        hospitalSystem.isVolunteerWorking = false
-        hospitalSystem.volunteerProgress = 0
-        
-        // 重置成就系统
-        achievementSystem.achievements.score = 0
-        achievementSystem.achievements.unlocked = []
-        achievementSystem.showAchievementModal = false
-        achievementSystem.newAchievements = []
-        
-        isDead.value = false
-        showReflectionModal.value = false
-      }
-    }
-    
-    // 显示反思
-    const showReflection = () => {
-      showReflectionModal.value = true
-    }
-    
-    // 关闭反思
-    const closeReflection = () => {
-      showReflectionModal.value = false
-    }
-    
-    // 数据持久化功能
     // 获取Session ID
     const getSessionId = () => {
       let storedSessionId = localStorage.getItem('smokingSimulatorSessionId')
@@ -1248,7 +1272,11 @@ export default {
       
       // 检查是否有香烟库存
       if (economy.cigaretteStock <= 0) {
-        alert('没有香烟了！请先到小卖部购买香烟。')
+        showCustomAlert({
+          title: '库存不足',
+          message: '没有香烟了！请先到小卖部购买香烟。',
+          type: 'warning'
+        })
         return
       }
       
@@ -1295,9 +1323,9 @@ export default {
         }
         smokeStreams.value = [...smokeStreams.value, ...newStreams]
         
-        // 限制流数量
-        if (smokeStreams.value.length > 20) {
-          smokeStreams.value = smokeStreams.value.slice(-20)
+        // 限制烟雾流数量
+        if (smokeStreams.value.length > 15) {
+          smokeStreams.value = smokeStreams.value.slice(-15)
         }
       }, 300)
 
@@ -1309,82 +1337,179 @@ export default {
         }
         smokeWisps.value = [...smokeWisps.value, ...newWisps]
         
-        // 限制缕数量
-        if (smokeWisps.value.length > 15) {
-          smokeWisps.value = smokeWisps.value.slice(-15)
+        // 限制烟雾缕数量
+        if (smokeWisps.value.length > 10) {
+          smokeWisps.value = smokeWisps.value.slice(-10)
         }
       }, 500)
 
-      // 进度和灰烬更新
-      const startTime = Date.now()
-      const progressInterval = setInterval(() => {
-        const elapsed = (Date.now() - startTime) / 1000
-        const progress = Math.min((elapsed / smokingDuration) * 100, 100)
-        const remaining = Math.max(smokingDuration - elapsed, 0)
+      // 进度条动画
+      progressInterval = setInterval(() => {
+        smokingProgress.value += (100 / (smokingDuration * 10))
+        ashProgress.value += (100 / (smokingDuration * 10))
+        timeRemaining.value = Math.max(0, timeRemaining.value - 0.1)
         
-        smokingProgress.value = progress
-        timeRemaining.value = Math.ceil(remaining)
-        ashProgress.value = progress
-        
-        if (progress >= 100) {
-          clearInterval(progressInterval)
+        if (smokingProgress.value >= 100) {
+          stopSmoking()
         }
       }, 100)
+    }
+
+    // 停止吸烟
+    const stopSmoking = () => {
+      isSmoking.value = false
+      ashProgress.value = 0
+      smokingProgress.value = 0
+      timeRemaining.value = smokingDuration
       
-      // 记录吸烟数据
-      try {
-        await axios.post('/api/smoking/smoke', {
-          userAgent: navigator.userAgent,
-          smokingIntensity: Math.random() * 10 + 5
-        })
-      } catch (error) {
-        console.error('记录吸烟数据失败:', error)
+      // 清理定时器
+      if (smokeInterval) {
+        clearInterval(smokeInterval)
+        smokeInterval = null
+      }
+      if (streamInterval) {
+        clearInterval(streamInterval)
+        streamInterval = null
+      }
+      if (wispInterval) {
+        clearInterval(wispInterval)
+        wispInterval = null
+      }
+      if (progressInterval) {
+        clearInterval(progressInterval)
+        progressInterval = null
       }
       
-      // 15秒后停止吸烟
+      // 清理烟雾效果
       setTimeout(() => {
-        isSmoking.value = false
-        ashProgress.value = 0
-        smokingProgress.value = 0
-        timeRemaining.value = 0
         smokeParticles.value = []
         smokeStreams.value = []
         smokeWisps.value = []
-        
-        if (smokeInterval) {
-          clearInterval(smokeInterval)
-          smokeInterval = null
-        }
-        if (streamInterval) {
-          clearInterval(streamInterval)
-          streamInterval = null
-        }
-        if (wispInterval) {
-          clearInterval(wispInterval)
-          wispInterval = null
-        }
-        if (progressInterval) {
-          clearInterval(progressInterval)
-        }
-        loadStats()
-        
-        // 检查成就
-        checkForNewAchievements()
-      }, smokingDuration * 1000)
+      }, 3000)
     }
 
-    // 加载统计数据
-    const loadStats = async () => {
-      try {
-        const response = await axios.get('/api/smoking/stats')
-        stats.todaySmokes = response.data.todaySmokes
-        stats.totalSmokes = response.data.totalSmokes
-      } catch (error) {
-        console.error('加载统计数据失败:', error)
+    // 检查死亡
+    const checkDeath = () => {
+      if (health.lifeExpectancy <= 35) {
+        isDead.value = true
+        stats.deathAge = health.lifeExpectancy
+        stats.totalDaysAlive = timeSystem.currentDay
+        stopSmoking()
       }
     }
 
-    // 重置统计
+    // 开始捐赠学校
+    const donate = () => {
+      if (isDonating.value || economy.money < 100) return
+      
+      isDonating.value = true
+      economy.money -= 100
+      stats.totalDonations += 1
+      
+      // 恢复部分健康和寿命
+      health.lungHealth = Math.min(100, health.lungHealth + 5)
+      health.heartHealth = Math.min(100, health.heartHealth + 8)
+      health.immunity = Math.min(100, health.immunity + 10)
+      health.lifeExpectancy = Math.min(85, health.lifeExpectancy + 2)
+      
+      // 显示捐赠结果
+      setTimeout(() => {
+        showDonationModal.value = true
+        isDonating.value = false
+        
+        // 检查成就
+        checkForNewAchievements()
+      }, 1000)
+    }
+
+    // 关闭捐赠弹窗
+    const closeDonationModal = () => {
+      showDonationModal.value = false
+    }
+
+    // 重新开始生活
+    const restartLife = async () => {
+      try {
+        // 调用后端重置接口
+        await resetUserDataToServer()
+        
+        // 重置死亡状态
+        showReflectionModal.value = false
+        
+        console.log('游戏重新开始')
+      } catch (error) {
+        console.error('重新开始失败:', error)
+        // 如果后端失败，使用本地重置
+        health.lungHealth = 100
+        health.heartHealth = 100
+        health.liverHealth = 100
+        health.bloodPressure = 120
+        health.oxygenLevel = 98
+        health.immunity = 100
+        health.lifeExpectancy = 80
+        health.smokingDamage = 0
+        
+        economy.money = 100
+        economy.cigaretteStock = 0
+        economy.isWorking = false
+        economy.workProgress = 0
+        
+        stats.todaySmokes = 0
+        stats.totalSmokes = 0
+        stats.totalDonations = 0
+        stats.totalWorkDays = 0
+        
+        // 重置时间系统
+        timeSystem.currentDay = 1
+        timeSystem.lastHospitalDay = 0
+        timeSystem.needsHospital = false
+        
+        // 重置医院系统
+        hospitalSystem.hospitalVisits = 0
+        hospitalSystem.volunteerHours = 0
+        hospitalSystem.isHospitalOpen = false
+        hospitalSystem.isVolunteerWorking = false
+        hospitalSystem.volunteerProgress = 0
+        
+        // 重置成就系统
+        achievementSystem.achievements.score = 0
+        achievementSystem.achievements.unlocked = []
+        achievementSystem.showAchievementModal = false
+        achievementSystem.newAchievements = []
+        
+        isDead.value = false
+        showReflectionModal.value = false
+      }
+    }
+    
+    // 显示反思
+    const showReflection = () => {
+      showReflectionModal.value = true
+    }
+    
+    // 关闭反思
+    const closeReflection = () => {
+      showReflectionModal.value = false
+    }
+    
+    // 数据持久化功能
+
+    // 加载本地统计数据
+    const loadStats = () => {
+      const savedStats = localStorage.getItem('smokingStats')
+      if (savedStats) {
+        const parsedStats = JSON.parse(savedStats)
+        stats.todaySmokes = parsedStats.todaySmokes || 0
+        stats.totalSmokes = parsedStats.totalSmokes || 0
+      }
+    }
+
+    // 保存统计数据到本地
+    const saveStats = () => {
+      localStorage.setItem('smokingStats', JSON.stringify(stats))
+    }
+
+    // 重置统计数据
     const resetStats = () => {
       stats.todaySmokes = 0
       stats.totalSmokes = 0
@@ -1506,7 +1631,13 @@ export default {
       checkForNewAchievements,
       
       // 统合信息面板
-      currentTab
+      currentTab,
+      
+      // 自定义弹窗
+      customAlert,
+      showCustomAlert,
+      closeCustomAlert,
+      cancelCustomAlert
     }
   }
 }
@@ -5086,5 +5217,321 @@ export default {
 
 .theme-traditional .volunteer-progress span {
   color: #228b22;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(5px);
+}
+
+.donation-result-modal {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  max-width: 90%;
+  width: 300px;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.donation-school {
+  margin-bottom: 20px;
+}
+
+.floating-hearts {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 10px;
+}
+
+.heart {
+  font-size: 2rem;
+  color: #ff6b6b;
+  animation: heartbeat 1s infinite;
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+.close-donation-btn {
+  background: linear-gradient(45deg, #4169e1, #6495ed);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  padding: 10px 20px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 20px;
+}
+
+.close-donation-btn:hover {
+  background: linear-gradient(45deg, #6495ed, #87ceeb);
+  box-shadow: 0 0 10px rgba(65, 105, 225, 0.5);
+}
+
+.custom-alert-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(5px);
+}
+
+/* 自定义弹窗样式 */
+.custom-alert-modal {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  max-width: 90%;
+  width: 380px;
+  text-align: left;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: alertFadeIn 0.3s ease-out;
+  transform-origin: center;
+}
+
+@keyframes alertFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 赛博朋克主题弹窗 */
+.custom-alert-modal.cyber {
+  background: linear-gradient(135deg, rgba(0, 15, 30, 0.95), rgba(0, 30, 60, 0.95));
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  box-shadow: 
+    0 0 30px rgba(0, 255, 255, 0.3),
+    inset 0 0 30px rgba(0, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+}
+
+.custom-alert-modal.cyber .alert-title {
+  color: #00ffff;
+  font-family: 'Orbitron', monospace;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+}
+
+.custom-alert-modal.cyber .alert-message {
+  color: #e0e0e0;
+  font-family: 'Roboto', sans-serif;
+}
+
+.custom-alert-modal.cyber .alert-btn {
+  background: linear-gradient(45deg, rgba(0, 255, 255, 0.2), rgba(255, 0, 255, 0.2));
+  border: 2px solid #00ffff;
+  border-radius: 25px;
+  color: #00ffff;
+  font-family: 'Orbitron', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+.custom-alert-modal.cyber .alert-btn:hover {
+  background: linear-gradient(45deg, rgba(0, 255, 255, 0.4), rgba(255, 0, 255, 0.4));
+  box-shadow: 0 0 25px rgba(0, 255, 255, 0.6);
+  transform: translateY(-2px);
+}
+
+.custom-alert-modal.cyber .cancel-btn {
+  border-color: #ff0080;
+  color: #ff0080;
+  background: linear-gradient(45deg, rgba(255, 0, 128, 0.2), rgba(255, 100, 100, 0.2));
+}
+
+.custom-alert-modal.cyber .cancel-btn:hover {
+  background: linear-gradient(45deg, rgba(255, 0, 128, 0.4), rgba(255, 100, 100, 0.4));
+  box-shadow: 0 0 25px rgba(255, 0, 128, 0.6);
+}
+
+/* 传统主题弹窗 */
+.custom-alert-modal.traditional {
+  background: linear-gradient(135deg, #f8f8f8, #ffffff);
+  border: 3px solid #8b4513;
+  border-radius: 15px;
+  box-shadow: 
+    0 10px 30px rgba(139, 69, 19, 0.3),
+    inset 0 0 20px rgba(255, 255, 255, 0.8);
+}
+
+.custom-alert-modal.traditional .alert-title {
+  color: #8b4513;
+  font-family: 'Microsoft YaHei', sans-serif;
+  font-weight: bold;
+}
+
+.custom-alert-modal.traditional .alert-message {
+  color: #333;
+  font-family: 'Microsoft YaHei', sans-serif;
+  line-height: 1.6;
+}
+
+.custom-alert-modal.traditional .alert-btn {
+  background: linear-gradient(45deg, #daa520, #ffd700);
+  border: 2px solid #8b4513;
+  border-radius: 8px;
+  color: #8b4513;
+  font-family: 'Microsoft YaHei', sans-serif;
+  font-weight: bold;
+  box-shadow: 0 4px 8px rgba(139, 69, 19, 0.3);
+}
+
+.custom-alert-modal.traditional .alert-btn:hover {
+  background: linear-gradient(45deg, #ffd700, #ffed4e);
+  box-shadow: 0 6px 12px rgba(139, 69, 19, 0.4);
+  transform: translateY(-2px);
+}
+
+.custom-alert-modal.traditional .cancel-btn {
+  background: linear-gradient(45deg, #cd853f, #daa520);
+  color: #654321;
+}
+
+.custom-alert-modal.traditional .cancel-btn:hover {
+  background: linear-gradient(45deg, #daa520, #ffd700);
+}
+
+/* 弹窗头部 */
+.alert-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.cyber .alert-header {
+  border-bottom-color: rgba(0, 255, 255, 0.3);
+}
+
+.traditional .alert-header {
+  border-bottom-color: rgba(139, 69, 19, 0.3);
+}
+
+.alert-icon {
+  font-size: 2.5rem;
+  margin-right: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.alert-title {
+  font-size: 1.4rem;
+  font-weight: bold;
+  margin: 0;
+  flex: 1;
+}
+
+/* 弹窗内容 */
+.alert-content {
+  margin-bottom: 25px;
+  min-height: 40px;
+}
+
+.alert-message {
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* 弹窗按钮区域 */
+.alert-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+}
+
+.alert-btn {
+  padding: 12px 24px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  border-radius: 8px;
+  min-width: 80px;
+  font-weight: 600;
+}
+
+.alert-btn:active {
+  transform: translateY(1px);
+}
+
+/* 不同类型弹窗的图标颜色 */
+.success .alert-icon {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.error .alert-icon {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+.warning .alert-icon {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.info .alert-icon {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+  .custom-alert-modal {
+    width: 95%;
+    padding: 20px;
+  }
+  
+  .alert-title {
+    font-size: 1.2rem;
+  }
+  
+  .alert-icon {
+    font-size: 2rem;
+    width: 40px;
+    height: 40px;
+  }
+  
+  .alert-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .alert-btn {
+    width: 100%;
+  }
 }
 </style> 
