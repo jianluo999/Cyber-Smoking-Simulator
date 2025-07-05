@@ -230,9 +230,13 @@
     </div>
 
     <!-- 标题 -->
-    <div class="title-section">
-      <h1 class="main-title" :class="titleClass">{{ themeConfig.title }}</h1>
-      <p class="subtitle" :class="subtitleClass">{{ themeConfig.subtitle }}</p>
+    <div class="title-section" style="position: relative; z-index: 1000; margin-top: 20px;">
+      <h1 class="main-title" :class="titleClass" style="font-size: 2.5rem; margin: 10px 0;">
+        {{ themeConfig[currentTheme].title }}
+      </h1>
+      <p class="subtitle" :class="subtitleClass" style="font-size: 1.2rem; margin: 10px 0;">
+        {{ themeConfig[currentTheme].subtitle }}
+      </p>
     </div>
 
     <!-- 左侧小卖部 -->
@@ -408,21 +412,54 @@
 
 
 
-    <!-- 死亡弹窗 -->
+    <!-- 多样化死亡弹窗 -->
     <div class="death-overlay" v-if="isDead">
-      <div class="death-modal">
+      <div class="death-modal" :class="deathDetails.cause">
         <div class="death-content">
-          <div class="death-icon">💀</div>
-          <h2 class="death-title">生命终结</h2>
+          <div class="death-icon" :style="{ color: deathDetails.color }">
+            {{ deathDetails.icon }}
+          </div>
+          <h2 class="death-title" :style="{ color: deathDetails.color }">
+            {{ deathDetails.title }}
+          </h2>
           <div class="death-message">
-            <p>由于长期吸烟和过度劳累，您的健康状况已经恶化到了无法挽回的地步。</p>
-            <p>最终寿命：{{ Math.round(health.lifeExpectancy) }}岁</p>
-            <p>总共吸烟：{{ stats.totalSmokes }}支</p>
-            <p>累计健康损害：{{ Math.round(health.smokingDamage) }}点</p>
+            <p class="death-story">{{ deathDetails.message }}</p>
+            <div class="death-stats">
+              <div class="stat-line">
+                <span class="stat-icon">📅</span>
+                <span>生存天数：{{ timeSystem.currentDay }}天</span>
+              </div>
+              <div class="stat-line">
+                <span class="stat-icon">⏰</span>
+                <span>最终寿命：{{ Math.round(health.lifeExpectancy) }}岁</span>
+              </div>
+              <div class="stat-line">
+                <span class="stat-icon">🚬</span>
+                <span>总共吸烟：{{ stats.totalSmokes }}支</span>
+              </div>
+              <div class="stat-line">
+                <span class="stat-icon">💼</span>
+                <span>工作天数：{{ stats.totalWorkDays }}天</span>
+              </div>
+              <div class="stat-line">
+                <span class="stat-icon">❤️</span>
+                <span>捐赠次数：{{ stats.totalDonations }}次</span>
+              </div>
+              <div class="death-details">
+                <span class="details-label">死因详情：</span>
+                <span class="details-text">{{ deathDetails.details }}</span>
+              </div>
+            </div>
           </div>
           <div class="death-actions">
-            <button class="restart-btn" @click="restartLife">重新开始</button>
-            <button class="reflect-btn" @click="showReflection">反思人生</button>
+            <button class="restart-btn" @click="restartLife">
+              <span class="btn-icon">🔄</span>
+              重新开始
+            </button>
+            <button class="reflect-btn" @click="showReflection">
+              <span class="btn-icon">🤔</span>
+              反思人生
+            </button>
           </div>
         </div>
       </div>
@@ -930,6 +967,107 @@ export default {
     // 检查是否需要去医院
     const shouldGoToHospital = () => {
       return health.lungHealth < 30 || health.heartHealth < 30 || health.liverHealth < 30 || health.immunity < 20
+    }
+
+    // 死亡原因和弹窗系统
+    const deathCause = ref('')
+    const deathDetails = ref({})
+
+    // 获取死亡原因
+    const getDeathCause = () => {
+      // 自然寿命到期
+      if (health.lifeExpectancy <= 35 && health.lungHealth > 20 && health.heartHealth > 20) {
+        return {
+          cause: 'natural',
+          title: '寿终正寝',
+          icon: '🕊️',
+          message: '您度过了平凡而充实的一生，在亲人的陪伴下安详离世...',
+          details: `享年 ${Math.round(health.lifeExpectancy)} 岁`,
+          color: '#4caf50'
+        }
+      }
+      
+      // 吸烟导致的肺癌
+      if (health.lungHealth <= 10 && stats.totalSmokes > 50) {
+        return {
+          cause: 'lung_cancer',
+          title: '肺癌晚期',
+          icon: '🫁',
+          message: '长期吸烟导致您患上了肺癌，经过痛苦的治疗后还是离开了人世...',
+          details: `总共吸烟 ${stats.totalSmokes} 支，肺部健康仅剩 ${Math.round(health.lungHealth)}%`,
+          color: '#f44336'
+        }
+      }
+      
+      // 心脏病突发
+      if (health.heartHealth <= 10 && health.bloodPressure > 180) {
+        return {
+          cause: 'heart_attack',
+          title: '心脏病突发',
+          icon: '💔',
+          message: '由于长期的不良生活习惯，您的心脏不堪重负，突发心脏病离世...',
+          details: `心脏健康 ${Math.round(health.heartHealth)}%，血压高达 ${Math.round(health.bloodPressure)} mmHg`,
+          color: '#e91e63'
+        }
+      }
+      
+      // 打工意外死亡
+      if (economy.isWorking && Math.random() < 0.1) {
+        return {
+          cause: 'work_accident',
+          title: '工地意外',
+          icon: '⚠️',
+          message: '在工地施工过程中发生了意外事故，您不幸被倒塌的脚手架压中...',
+          details: `工作 ${stats.totalWorkDays} 天后发生意外`,
+          color: '#ff9800'
+        }
+      }
+      
+      // 黑心中介工作意外
+      if (economy.isDarkWorking && Math.random() < 0.15) {
+        return {
+          cause: 'dark_work_accident',
+          title: '黑心中介意外',
+          icon: '💀',
+          message: '在从事危险的黑心中介工作时发生了严重事故，您的生命就此终结...',
+          details: `用生命换取金钱的代价`,
+          color: '#8b0000'
+        }
+      }
+      
+      // 过度劳累
+      if (stats.totalWorkDays > 30 && health.immunity < 20) {
+        return {
+          cause: 'overwork',
+          title: '过劳死',
+          icon: '😵',
+          message: '长期的过度劳累让您的身体不堪重负，最终倒在了工作岗位上...',
+          details: `连续工作 ${stats.totalWorkDays} 天，免疫力仅剩 ${Math.round(health.immunity)}%`,
+          color: '#795548'
+        }
+      }
+      
+      // 综合健康恶化
+      if (health.lungHealth < 20 && health.heartHealth < 20 && health.liverHealth < 30) {
+        return {
+          cause: 'multi_organ_failure',
+          title: '多器官衰竭',
+          icon: '🏥',
+          message: '由于多个重要器官同时衰竭，医生已经无力回天...',
+          details: `肺部 ${Math.round(health.lungHealth)}%，心脏 ${Math.round(health.heartHealth)}%，肝脏 ${Math.round(health.liverHealth)}%`,
+          color: '#9c27b0'
+        }
+      }
+      
+      // 默认死亡
+      return {
+        cause: 'general',
+        title: '生命终结',
+        icon: '💀',
+        message: '由于身体状况严重恶化，您的生命走到了尽头...',
+        details: `最终寿命：${Math.round(health.lifeExpectancy)}岁`,
+        color: '#607d8b'
+      }
     }
     
     // 推进时间
@@ -1493,11 +1631,27 @@ export default {
 
     // 检查死亡
     const checkDeath = () => {
-      if (health.lifeExpectancy <= 35) {
+      // 死亡条件检查
+      const shouldDie = health.lifeExpectancy <= 35 || 
+                       health.lungHealth <= 5 || 
+                       health.heartHealth <= 5 || 
+                       (health.lungHealth < 15 && health.heartHealth < 15) ||
+                       (economy.isWorking && Math.random() < 0.02) || // 2%工作意外概率
+                       (economy.isDarkWorking && Math.random() < 0.05) // 5%黑心中介意外概率
+      
+      if (shouldDie && !isDead.value) {
+        const deathInfo = getDeathCause()
+        deathCause.value = deathInfo.cause
+        deathDetails.value = deathInfo
+        
         isDead.value = true
         stats.deathAge = health.lifeExpectancy
         stats.totalDaysAlive = timeSystem.currentDay
         stopSmoking()
+        
+        // 停止所有工作
+        if (economy.isWorking) economy.isWorking = false
+        if (economy.isDarkWorking) economy.isDarkWorking = false
       }
     }
 
@@ -1741,7 +1895,11 @@ export default {
       customAlert,
       showCustomAlert,
       closeCustomAlert,
-      cancelCustomAlert
+      cancelCustomAlert,
+      
+      // 死亡系统
+      deathCause,
+      deathDetails
     }
   }
 }
@@ -5744,5 +5902,245 @@ export default {
 .traditional .dark-work-btn:hover:not(:disabled) {
   background: linear-gradient(45deg, #a0522d, #cd853f);
   box-shadow: 0 0 15px rgba(139, 0, 0, 0.4);
+}
+
+/* 多样化死亡弹窗样式 */
+.death-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.death-modal {
+  background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+  border: 3px solid #ff0080;
+  border-radius: 20px;
+  box-shadow: 
+    0 0 50px rgba(255, 0, 128, 0.5),
+    inset 0 0 30px rgba(255, 255, 255, 0.1);
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: modalIn 0.5s ease-out;
+}
+
+.death-content {
+  padding: 30px;
+  text-align: center;
+}
+
+.death-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  animation: pulse 2s infinite;
+}
+
+.death-title {
+  font-size: 2.5rem;
+  font-family: 'Orbitron', monospace;
+  font-weight: bold;
+  margin-bottom: 20px;
+  text-shadow: 0 0 20px currentColor;
+}
+
+.death-story {
+  font-size: 1.2rem;
+  line-height: 1.6;
+  color: #e0e0e0;
+  margin-bottom: 25px;
+  font-style: italic;
+}
+
+.death-stats {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 15px;
+  padding: 20px;
+  margin: 20px 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.stat-line:last-child {
+  border-bottom: none;
+}
+
+.stat-icon {
+  font-size: 1.2rem;
+  margin-right: 10px;
+}
+
+.death-details {
+  margin-top: 15px;
+  padding: 15px;
+  background: rgba(255, 0, 128, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 0, 128, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.details-label {
+  font-weight: bold;
+  color: #ff0080;
+}
+
+.details-text {
+  color: #ffb3d9;
+  font-style: italic;
+}
+
+.death-actions {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+.restart-btn, .reflect-btn {
+  padding: 15px 30px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-radius: 25px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Orbitron', monospace;
+}
+
+.restart-btn {
+  background: linear-gradient(45deg, #00ff00, #00cc00);
+  color: #000;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+}
+
+.restart-btn:hover {
+  background: linear-gradient(45deg, #00cc00, #009900);
+  box-shadow: 0 0 30px rgba(0, 255, 0, 0.8);
+  transform: translateY(-2px);
+}
+
+.reflect-btn {
+  background: linear-gradient(45deg, #ffaa00, #ff8800);
+  color: #000;
+  box-shadow: 0 0 20px rgba(255, 170, 0, 0.5);
+}
+
+.reflect-btn:hover {
+  background: linear-gradient(45deg, #ff8800, #ff6600);
+  box-shadow: 0 0 30px rgba(255, 170, 0, 0.8);
+  transform: translateY(-2px);
+}
+
+.btn-icon {
+  font-size: 1.2rem;
+}
+
+/* 不同死亡原因的特色样式 */
+.death-modal.natural {
+  border-color: #4caf50;
+  box-shadow: 0 0 50px rgba(76, 175, 80, 0.5);
+}
+
+.death-modal.lung_cancer {
+  border-color: #f44336;
+  box-shadow: 0 0 50px rgba(244, 67, 54, 0.5);
+}
+
+.death-modal.heart_attack {
+  border-color: #e91e63;
+  box-shadow: 0 0 50px rgba(233, 30, 99, 0.5);
+}
+
+.death-modal.work_accident {
+  border-color: #ff9800;
+  box-shadow: 0 0 50px rgba(255, 152, 0, 0.5);
+}
+
+.death-modal.dark_work_accident {
+  border-color: #8b0000;
+  box-shadow: 0 0 50px rgba(139, 0, 0, 0.8);
+}
+
+.death-modal.overwork {
+  border-color: #795548;
+  box-shadow: 0 0 50px rgba(121, 85, 72, 0.5);
+}
+
+.death-modal.multi_organ_failure {
+  border-color: #9c27b0;
+  box-shadow: 0 0 50px rgba(156, 39, 176, 0.5);
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalIn {
+  from { 
+    opacity: 0; 
+    transform: scale(0.7) translateY(-50px);
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .death-modal {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  .death-content {
+    padding: 20px;
+  }
+  
+  .death-title {
+    font-size: 2rem;
+  }
+  
+  .death-icon {
+    font-size: 3rem;
+  }
+  
+  .death-actions {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .restart-btn, .reflect-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 </style> 
