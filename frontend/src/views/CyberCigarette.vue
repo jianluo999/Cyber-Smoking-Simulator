@@ -135,6 +135,100 @@
       </div>
     </div>
 
+    <!-- 右侧医院面板 -->
+    <div class="hospital-panel right-panel">
+      <div class="panel-header">
+        <h3>🏥 医院</h3>
+        <button @click="toggleHospital" class="hospital-toggle-btn">
+          {{ hospitalSystem.isHospitalOpen ? '关闭' : '打开医院' }}
+        </button>
+      </div>
+      <div class="hospital-info">
+        <span>💰 费用: ¥200</span>
+        <span>📋 就诊记录: {{ hospitalSystem.hospitalVisits }}次</span>
+        <span>🕒 义工时长: {{ hospitalSystem.volunteerHours }}小时</span>
+      </div>
+      <div class="hospital-content" v-if="hospitalSystem.isHospitalOpen">
+        <!-- 医院选项卡 -->
+        <div class="hospital-tabs">
+          <button class="tab-btn" :class="{ active: hospitalTab === 'treatment' }" @click="hospitalTab = 'treatment'">
+            治疗
+          </button>
+          <button class="tab-btn" :class="{ active: hospitalTab === 'volunteer' }" @click="hospitalTab = 'volunteer'">
+            义工
+          </button>
+        </div>
+        
+        <!-- 治疗选项卡 -->
+        <div v-if="hospitalTab === 'treatment'" class="hospital-service">
+          <div class="service-description">
+            <h4>💊 医疗服务</h4>
+            <p>专业的医疗团队为您提供全面的健康恢复治疗</p>
+          </div>
+          <div class="service-benefits">
+            <div class="benefit-item">
+              <span class="benefit-icon">🫁</span>
+              <span class="benefit-text">肺部健康 +30%</span>
+            </div>
+            <div class="benefit-item">
+              <span class="benefit-icon">❤️</span>
+              <span class="benefit-text">心脏健康 +30%</span>
+            </div>
+            <div class="benefit-item">
+              <span class="benefit-icon">🛡️</span>
+              <span class="benefit-text">免疫力 +35%</span>
+            </div>
+            <div class="benefit-item">
+              <span class="benefit-icon">⏰</span>
+              <span class="benefit-text">寿命 +2岁</span>
+            </div>
+          </div>
+          <button @click="visitHospital" 
+                  :disabled="economy.money < 200 || isDead"
+                  class="hospital-btn treatment-btn">
+            {{ economy.money < 200 ? '资金不足' : '接受治疗 (¥200)' }}
+          </button>
+        </div>
+        
+        <!-- 义工选项卡 -->
+        <div v-if="hospitalTab === 'volunteer'" class="hospital-service">
+          <div class="service-description">
+            <h4>❤️ 义工服务</h4>
+            <p>通过帮助他人来改善自己的身心健康</p>
+          </div>
+          <div class="volunteer-progress" v-if="hospitalSystem.isVolunteerWorking">
+            <div class="progress-bar">
+              <div class="progress-fill" :style="{ width: hospitalSystem.volunteerProgress + '%' }"></div>
+            </div>
+            <span>义工服务中... {{ hospitalSystem.volunteerProgress }}%</span>
+          </div>
+          <div class="service-benefits">
+            <div class="benefit-item">
+              <span class="benefit-icon">🫁</span>
+              <span class="benefit-text">肺部健康 +15%</span>
+            </div>
+            <div class="benefit-item">
+              <span class="benefit-icon">❤️</span>
+              <span class="benefit-text">心脏健康 +15%</span>
+            </div>
+            <div class="benefit-item">
+              <span class="benefit-icon">🛡️</span>
+              <span class="benefit-text">免疫力 +20%</span>
+            </div>
+            <div class="benefit-item">
+              <span class="benefit-icon">⏰</span>
+              <span class="benefit-text">寿命 +1岁</span>
+            </div>
+          </div>
+          <button @click="startVolunteer" 
+                  :disabled="hospitalSystem.isVolunteerWorking || shouldGoToHospital() || isDead"
+                  class="hospital-btn volunteer-btn">
+            {{ hospitalSystem.isVolunteerWorking ? '义工服务中...' : (shouldGoToHospital() ? '健康太差，无法服务' : '开始义工服务') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- 标题 -->
     <div class="title-section">
       <h1 class="main-title" :class="titleClass">{{ themeConfig.title }}</h1>
@@ -283,14 +377,6 @@
 
     <!-- 右下角按钮区域 -->
     <div class="bottom-right-actions">
-      <!-- 医院按钮 -->
-      <div class="hospital-corner">
-        <button class="corner-hospital-btn" @click="toggleHospital" :disabled="isDead">
-          <span class="hospital-icon">🏥</span>
-          <span class="hospital-text">医院</span>
-        </button>
-      </div>
-      
       <!-- 捐赠按钮 -->
       <div class="donation-corner">
         <button class="corner-donation-btn" @click="donate" :disabled="economy.money < 100 || isDead">
@@ -301,84 +387,7 @@
       </div>
     </div>
 
-    <!-- 医院面板 -->
-    <div class="hospital-panel" v-if="hospitalSystem.isHospitalOpen">
-      <div class="hospital-header">
-        <h3>🏥 医院</h3>
-        <button class="close-btn" @click="toggleHospital">×</button>
-      </div>
-      
-      <div class="hospital-tabs">
-        <button class="tab-btn" :class="{ active: hospitalTab === 'treatment' }" @click="hospitalTab = 'treatment'">
-          治疗
-        </button>
-        <button class="tab-btn" :class="{ active: hospitalTab === 'volunteer' }" @click="hospitalTab = 'volunteer'">
-          义工
-        </button>
-      </div>
-      
-      <div class="hospital-content">
-        <!-- 治疗选项卡 -->
-        <div v-if="hospitalTab === 'treatment'">
-          <div class="hospital-info">
-            <span>费用: ¥200</span>
-            <span>就诊记录: {{ hospitalSystem.hospitalVisits }}次</span>
-          </div>
-          <div class="hospital-services">
-            <div class="service-item">
-              <span class="service-icon">🫁</span>
-              <span class="service-text">肺部健康 +30%</span>
-            </div>
-            <div class="service-item">
-              <span class="service-icon">❤️</span>
-              <span class="service-text">心脏健康 +30%</span>
-            </div>
-            <div class="service-item">
-              <span class="service-icon">🛡️</span>
-              <span class="service-text">免疫力 +35%</span>
-            </div>
-          </div>
-          <button @click="visitHospital" 
-                  :disabled="economy.money < 200 || isDead" 
-                  class="hospital-treatment-btn">
-            {{ economy.money < 200 ? '金钱不足' : '接受治疗' }}
-          </button>
-        </div>
-        
-        <!-- 义工服务选项卡 -->
-        <div v-if="hospitalTab === 'volunteer'">
-          <div class="volunteer-info">
-            <div class="volunteer-description">无报酬 | 提升健康</div>
-            <div class="volunteer-hours">义工时间: {{ hospitalSystem.volunteerHours }}小时</div>
-          </div>
-          <div class="volunteer-services">
-            <div class="service-item">
-              <span class="service-icon">🫁</span>
-              <span class="service-text">肺部健康 +15%</span>
-            </div>
-            <div class="service-item">
-              <span class="service-icon">❤️</span>
-              <span class="service-text">心脏健康 +15%</span>
-            </div>
-            <div class="service-item">
-              <span class="service-icon">🛡️</span>
-              <span class="service-text">免疫力 +20%</span>
-            </div>
-          </div>
-          <div class="volunteer-progress" v-if="hospitalSystem.isVolunteerWorking">
-            <div class="progress-bar">
-              <div class="progress-fill" :style="{ width: hospitalSystem.volunteerProgress + '%' }"></div>
-            </div>
-            <span>义工服务中... {{ hospitalSystem.volunteerProgress }}%</span>
-          </div>
-          <button @click="startVolunteer" 
-                  :disabled="hospitalSystem.isVolunteerWorking || shouldGoToHospital()"
-                  class="volunteer-btn">
-            {{ hospitalSystem.isVolunteerWorking ? '义工服务中...' : (shouldGoToHospital() ? '健康太差，先治疗' : '开始义工') }}
-          </button>
-        </div>
-      </div>
-    </div>
+
 
     <!-- 死亡弹窗 -->
     <div class="death-overlay" v-if="isDead">
@@ -3242,24 +3251,26 @@ export default {
 .corner-donation-btn {
   background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
   border: 2px solid #ff4444;
-  border-radius: 20px;
-  padding: 15px 20px;
+  border-radius: 25px;
+  padding: 25px 35px;
   color: white;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
+  box-shadow: 0 6px 20px rgba(255, 68, 68, 0.4);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
+  min-width: 120px;
+  min-height: 100px;
 }
 
 .corner-donation-btn:hover:not(:disabled) {
   background: linear-gradient(45deg, #ff8e8e, #ffb3b3);
-  box-shadow: 0 6px 20px rgba(255, 68, 68, 0.5);
-  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 68, 68, 0.6);
+  transform: translateY(-3px);
 }
 
 .corner-donation-btn:disabled {
@@ -3270,19 +3281,22 @@ export default {
 }
 
 .corner-donation-btn .donation-icon {
-  font-size: 1.5rem;
+  font-size: 2.2rem;
   animation: bounce 2s infinite;
 }
 
 .corner-donation-btn .donation-text {
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .corner-donation-btn .donation-amount {
-  font-size: 0.8rem;
+  font-size: 1rem;
   font-weight: 500;
   opacity: 0.9;
+  text-align: center;
 }
 
 @keyframes bounce {
@@ -3890,50 +3904,7 @@ export default {
   align-items: flex-end;
 }
 
-/* 医院按钮 */
-.hospital-corner {
-  display: flex;
-  justify-content: flex-end;
-}
 
-.corner-hospital-btn {
-  background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
-  border: 2px solid #ff6b6b;
-  border-radius: 20px;
-  color: white;
-  padding: 15px 20px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-}
-
-.corner-hospital-btn:hover:not(:disabled) {
-  background: linear-gradient(45deg, #ff8e8e, #ffb3b3);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
-}
-
-.corner-hospital-btn:disabled {
-  background: #666;
-  border-color: #555;
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.hospital-icon {
-  font-size: 1.5rem;
-  animation: pulse 2s infinite;
-}
-
-.hospital-text {
-  font-weight: 600;
-  font-size: 0.9rem;
-}
 
 /* 捐赠按钮 */
 .donation-corner {
@@ -4772,5 +4743,348 @@ export default {
 
 .theme-traditional .life-expectancy .health-number {
   color: #8b4513;
+}
+
+/* 医院面板样式 - 基于小卖部样式 */
+.hospital-panel {
+  position: absolute;
+  top: 900px;
+  right: 20px;
+  width: 320px;
+  background: rgba(255, 107, 107, 0.1);
+  border: 2px solid #ff6b6b;
+  border-radius: 15px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+  z-index: 1000;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.hospital-panel .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.hospital-panel .panel-header h3 {
+  color: #ff6b6b;
+  font-size: 1.2rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.hospital-toggle-btn {
+  background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.hospital-toggle-btn:hover {
+  background: linear-gradient(45deg, #ff8e8e, #ffb3b3);
+  box-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
+}
+
+.hospital-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+}
+
+.hospital-info span {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hospital-content {
+  animation: fadeIn 0.3s ease;
+}
+
+/* 医院选项卡 */
+.hospital-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 12px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.tab-btn.active {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.2);
+}
+
+.tab-btn:hover {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ff6b6b, #ff8e8e);
+}
+
+/* 医院服务样式 */
+.hospital-service {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.service-description {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.service-description h4 {
+  color: #ff6b6b;
+  font-size: 1rem;
+  margin: 0 0 8px 0;
+  font-weight: 600;
+}
+
+.service-description p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.service-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.benefit-icon {
+  font-size: 1.1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.benefit-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.85rem;
+}
+
+/* 医院按钮样式 */
+.hospital-btn {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.treatment-btn {
+  background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+  border: 2px solid #ff6b6b;
+}
+
+.treatment-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, #ff8e8e, #ffb3b3);
+  box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+  transform: translateY(-2px);
+}
+
+.volunteer-btn {
+  background: linear-gradient(45deg, #4caf50, #66bb6a);
+  border: 2px solid #4caf50;
+}
+
+.volunteer-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, #66bb6a, #81c784);
+  box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+  transform: translateY(-2px);
+}
+
+.hospital-btn:disabled {
+  background: #666;
+  border-color: #555;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+/* 义工进度条 */
+.volunteer-progress {
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.volunteer-progress .progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.volunteer-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #66bb6a);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.volunteer-progress span {
+  color: #4caf50;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* 传统主题样式 */
+.theme-traditional .hospital-panel {
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #dc143c;
+  box-shadow: 0 0 20px rgba(220, 20, 60, 0.3);
+}
+
+.theme-traditional .hospital-panel .panel-header h3 {
+  color: #dc143c;
+}
+
+.theme-traditional .hospital-toggle-btn {
+  background: linear-gradient(45deg, #dc143c, #b91c3c);
+  color: white;
+}
+
+.theme-traditional .hospital-toggle-btn:hover {
+  background: linear-gradient(45deg, #b91c3c, #991b3b);
+}
+
+.theme-traditional .hospital-info {
+  background: rgba(220, 20, 60, 0.1);
+  border-color: rgba(220, 20, 60, 0.3);
+}
+
+.theme-traditional .hospital-info span {
+  color: #333;
+}
+
+.theme-traditional .hospital-tabs {
+  background: rgba(220, 20, 60, 0.1);
+}
+
+.theme-traditional .tab-btn {
+  color: #dc143c;
+}
+
+.theme-traditional .tab-btn.active {
+  color: #991b3b;
+  background: rgba(220, 20, 60, 0.2);
+}
+
+.theme-traditional .tab-btn.active::after {
+  background: linear-gradient(90deg, #dc143c, #b91c3c);
+}
+
+.theme-traditional .service-description {
+  background: rgba(220, 20, 60, 0.1);
+  border-color: rgba(220, 20, 60, 0.3);
+}
+
+.theme-traditional .service-description h4 {
+  color: #dc143c;
+}
+
+.theme-traditional .service-description p {
+  color: #666;
+}
+
+.theme-traditional .benefit-item {
+  background: rgba(220, 20, 60, 0.1);
+  border-color: rgba(220, 20, 60, 0.2);
+}
+
+.theme-traditional .benefit-text {
+  color: #333;
+}
+
+.theme-traditional .treatment-btn {
+  background: linear-gradient(45deg, #dc143c, #b91c3c);
+  border-color: #dc143c;
+}
+
+.theme-traditional .treatment-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, #b91c3c, #991b3b);
+}
+
+.theme-traditional .volunteer-btn {
+  background: linear-gradient(45deg, #228b22, #32cd32);
+  border-color: #228b22;
+}
+
+.theme-traditional .volunteer-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, #32cd32, #90ee90);
+}
+
+.theme-traditional .volunteer-progress {
+  background: rgba(34, 139, 34, 0.1);
+  border-color: rgba(34, 139, 34, 0.3);
+}
+
+.theme-traditional .volunteer-progress .progress-fill {
+  background: linear-gradient(90deg, #228b22, #32cd32);
+}
+
+.theme-traditional .volunteer-progress span {
+  color: #228b22;
 }
 </style> 
