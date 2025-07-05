@@ -73,26 +73,29 @@
         </div>
       </div>
       <div class="health-stats">
-        <div class="health-item">
+        <div class="health-item" :class="{ 'critical-health': health.lungHealth < 30 }">
           <span class="health-label">🫁 肺部健康</span>
           <div class="health-bar">
-            <div class="health-fill lung" :style="{ width: health.lungHealth + '%' }"></div>
+            <div class="health-fill lung" :style="{ width: health.lungHealth + '%' }" 
+                 :class="{ 'critical': health.lungHealth < 30 }"></div>
           </div>
-          <span class="health-value">{{ Math.round(health.lungHealth) }}%</span>
+          <span class="health-value" :class="{ 'critical-text': health.lungHealth < 30 }">{{ Math.round(health.lungHealth) }}%</span>
         </div>
-        <div class="health-item">
+        <div class="health-item" :class="{ 'critical-health': health.heartHealth < 30 }">
           <span class="health-label">❤️ 心脏健康</span>
           <div class="health-bar">
-            <div class="health-fill heart" :style="{ width: health.heartHealth + '%' }"></div>
+            <div class="health-fill heart" :style="{ width: health.heartHealth + '%' }"
+                 :class="{ 'critical': health.heartHealth < 30 }"></div>
           </div>
-          <span class="health-value">{{ Math.round(health.heartHealth) }}%</span>
+          <span class="health-value" :class="{ 'critical-text': health.heartHealth < 30 }">{{ Math.round(health.heartHealth) }}%</span>
         </div>
-        <div class="health-item">
+        <div class="health-item" :class="{ 'critical-health': health.liverHealth < 30 }">
           <span class="health-label">🫀 肝脏健康</span>
           <div class="health-bar">
-            <div class="health-fill liver" :style="{ width: health.liverHealth + '%' }"></div>
+            <div class="health-fill liver" :style="{ width: health.liverHealth + '%' }"
+                 :class="{ 'critical': health.liverHealth < 30 }"></div>
           </div>
-          <span class="health-value">{{ Math.round(health.liverHealth) }}%</span>
+          <span class="health-value" :class="{ 'critical-text': health.liverHealth < 30 }">{{ Math.round(health.liverHealth) }}%</span>
         </div>
         <div class="health-item">
           <span class="health-label">🩸 血压</span>
@@ -270,6 +273,9 @@ export default {
       smokingDamage: 0 // 累积吸烟损害
     })
 
+    // 健康损害动画状态
+
+
     // 商店系统
     const shop = reactive({
       isOpen: false, // 是否打开商店
@@ -394,17 +400,40 @@ export default {
 
     // 更新健康参数
     const updateHealth = () => {
-      // 每次吸烟对健康的损害
-      const damage = Math.random() * 2 + 1
+      // 每次吸烟对健康的剧烈损害
+      const baseDamage = Math.random() * 3 + 2 // 2-5的基础伤害
       
-      health.lungHealth = Math.max(0, health.lungHealth - damage)
-      health.heartHealth = Math.max(0, health.heartHealth - damage * 0.8)
-      health.liverHealth = Math.max(0, health.liverHealth - damage * 0.5)
-      health.bloodPressure = Math.min(200, health.bloodPressure + damage * 0.5)
-      health.oxygenLevel = Math.max(70, health.oxygenLevel - damage * 0.3)
-      health.immunity = Math.max(0, health.immunity - damage * 0.6)
-      health.lifeExpectancy = Math.max(40, health.lifeExpectancy - damage * 0.1)
-      health.smokingDamage += damage
+      // 立即显著损害
+      health.lungHealth = Math.max(0, health.lungHealth - baseDamage * 1.5)
+      health.heartHealth = Math.max(0, health.heartHealth - baseDamage * 1.2)
+      health.liverHealth = Math.max(0, health.liverHealth - baseDamage * 0.8)
+      health.bloodPressure = Math.min(200, health.bloodPressure + baseDamage * 2)
+      health.oxygenLevel = Math.max(70, health.oxygenLevel - baseDamage * 1)
+      health.immunity = Math.max(0, health.immunity - baseDamage * 1.1)
+      health.lifeExpectancy = Math.max(40, health.lifeExpectancy - baseDamage * 0.3)
+      health.smokingDamage += baseDamage
+    }
+
+    // 实时健康损害（吸烟过程中持续损害）
+    const startHealthDamage = () => {
+      let damageCount = 0
+      const healthDamageInterval = setInterval(() => {
+        if (!isSmoking.value) {
+          clearInterval(healthDamageInterval)
+          return
+        }
+        
+        damageCount++
+        const continuousDamage = Math.random() * 1 + 0.5 // 持续小伤害
+        
+        // 每2秒造成一次损害
+        if (damageCount % 20 === 0) {
+          health.lungHealth = Math.max(0, health.lungHealth - continuousDamage * 0.8)
+          health.heartHealth = Math.max(0, health.heartHealth - continuousDamage * 0.6)
+          health.oxygenLevel = Math.max(70, health.oxygenLevel - continuousDamage * 0.5)
+          health.bloodPressure = Math.min(200, health.bloodPressure + continuousDamage * 0.8)
+        }
+      }, 100) // 每100ms检查一次
     }
 
     // 创建烟雾粒子
@@ -473,6 +502,9 @@ export default {
       
       // 影响健康
       updateHealth()
+      
+      // 开始持续健康损害
+      startHealthDamage()
       
       isSmoking.value = true
       ashProgress.value = 0
@@ -624,6 +656,7 @@ export default {
       stats,
       economy,
       health,
+
       shop,
       currentTheme,
       themeConfig,
@@ -1103,6 +1136,8 @@ export default {
   animation: blink 1s infinite;
 }
 
+
+
 .health-stats {
   display: flex;
   flex-direction: column;
@@ -1142,18 +1177,72 @@ export default {
 
 .health-fill.lung {
   background: linear-gradient(90deg, #ff4444, #ffaa44, #44ff44);
+  animation: healthPulse 1s infinite ease-in-out;
 }
 
 .health-fill.heart {
   background: linear-gradient(90deg, #ff4444, #ff6666, #ff9999);
+  animation: healthPulse 1.2s infinite ease-in-out;
 }
 
 .health-fill.liver {
   background: linear-gradient(90deg, #aa4444, #cc6666, #ee8888);
+  animation: healthPulse 1.5s infinite ease-in-out;
 }
 
 .health-fill.immunity {
   background: linear-gradient(90deg, #4444ff, #6666ff, #8888ff);
+  animation: healthPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes healthPulse {
+  0%, 100% { 
+    opacity: 0.8; 
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+  }
+  50% { 
+    opacity: 1; 
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+  }
+}
+
+/* 危急健康状态 */
+.critical-health {
+  border: 2px solid #ff0000 !important;
+  background: rgba(255, 0, 0, 0.1) !important;
+  animation: criticalBlink 0.5s infinite alternate;
+}
+
+.health-fill.critical {
+  background: linear-gradient(90deg, #ff0000, #ff4444) !important;
+  animation: criticalPulse 0.3s infinite ease-in-out;
+}
+
+.critical-text {
+  color: #ff0000 !important;
+  font-weight: 900 !important;
+  animation: textBlink 0.5s infinite;
+}
+
+@keyframes criticalBlink {
+  0% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.5); }
+  100% { box-shadow: 0 0 20px rgba(255, 0, 0, 1); }
+}
+
+@keyframes criticalPulse {
+  0%, 100% { 
+    transform: scaleY(1);
+    opacity: 0.8;
+  }
+  50% { 
+    transform: scaleY(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes textBlink {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
 }
 
 .health-value {
