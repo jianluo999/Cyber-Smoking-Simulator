@@ -12,6 +12,10 @@
 ### 📖 项目简介
 
 这是一个基于 **SpringBoot3 + Vue3** 的赛博朋克风格戒烟模拟器。通过真实模拟吸烟对人体健康的影响，让用户直观地感受到吸烟的危害，从而起到戒烟警示的作用。
+![image](https://github.com/user-attachments/assets/bc5df1f9-2cbf-43e4-9deb-4be7c059fdd3)
+![Uploading 屏幕截图 2025-07-05 144508.png…]()
+
+
 
 ### ✨ 核心功能
 
