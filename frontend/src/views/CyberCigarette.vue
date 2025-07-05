@@ -28,15 +28,16 @@
       </div>
     </div>
 
-    <!-- 右上角时间面板 -->
-    <div class="time-panel right-top-panel">
+    <!-- 右上角时间统计面板 -->
+    <div class="time-stats-panel right-top-panel">
       <div class="panel-header">
-        <h3>📅 时间系统</h3>
+        <h3>📅 游戏信息</h3>
         <button @click="advanceDay" class="advance-day-btn">
           推进一天
         </button>
       </div>
-      <div class="time-content">
+      <div class="time-stats-content">
+        <!-- 时间信息 -->
         <div class="time-info">
           <div class="current-day">第 {{ timeSystem.currentDay }} 天</div>
           <div class="hospital-status" :class="{ 'needs-hospital': timeSystem.needsHospital }">
@@ -46,6 +47,29 @@
             上次就医: {{ timeSystem.lastHospitalDay > 0 ? `第${timeSystem.lastHospitalDay}天` : '从未就医' }}
           </div>
         </div>
+        <!-- 统计信息 -->
+        <div class="stats-info">
+          <div class="stat-row">
+            <span class="stat-icon">🚬</span>
+            <span class="stat-label">今日吸烟:</span>
+            <span class="stat-value">{{ stats.todaySmokes }}支</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span class="stat-label">总计吸烟:</span>
+            <span class="stat-value">{{ stats.totalSmokes }}支</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">💼</span>
+            <span class="stat-label">工作天数:</span>
+            <span class="stat-value">{{ stats.totalWorkDays }}天</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">❤️</span>
+            <span class="stat-label">捐赠次数:</span>
+            <span class="stat-value">{{ stats.totalDonations }}次</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -53,20 +77,6 @@
     <div class="title-section">
       <h1 class="main-title" :class="titleClass">{{ themeConfig.title }}</h1>
       <p class="subtitle" :class="subtitleClass">{{ themeConfig.subtitle }}</p>
-    </div>
-
-    <!-- 统计面板 -->
-    <div class="stats-dashboard">
-      <div class="stat-card">
-        <div class="stat-icon">🚬</div>
-        <div class="stat-value neon-text">{{ stats.todaySmokes }}</div>
-        <div class="stat-label">今日吸烟</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-value neon-text">{{ stats.totalSmokes }}</div>
-        <div class="stat-label">总计</div>
-      </div>
     </div>
 
     <!-- 左侧小卖部 -->
@@ -665,7 +675,7 @@ export default {
       }
       
       try {
-        const response = await axios.post('/api/userdata/hospital/visit', null, {
+        const response = await axios.post('/api/user/hospital/visit', null, {
           params: { sessionId: sessionId.value }
         })
         
@@ -709,9 +719,9 @@ export default {
           clearInterval(volunteerInterval)
           
           try {
-            const response = await axios.post('/api/userdata/hospital/volunteer', null, {
-              params: { sessionId: sessionId.value }
-            })
+                    const response = await axios.post('/api/user/hospital/volunteer', null, {
+          params: { sessionId: sessionId.value }
+        })
             
             // 更新数据
             health.lungHealth = response.data.lungHealth
@@ -738,7 +748,7 @@ export default {
     // 推进时间
     const advanceDay = async () => {
       try {
-        const response = await axios.post('/api/userdata/advance-day', null, {
+        const response = await axios.post('/api/user/advance-day', null, {
           params: { sessionId: sessionId.value }
         })
         
@@ -759,7 +769,7 @@ export default {
     // 检查新成就
     const checkForNewAchievements = async () => {
       try {
-        const response = await axios.get('/api/userdata/achievements', {
+        const response = await axios.get('/api/user/achievements', {
           params: { sessionId: sessionId.value }
         })
         
@@ -3666,12 +3676,12 @@ export default {
   }
 }
 
-/* 时间系统样式 */
-.time-panel {
+/* 时间统计系统样式 */
+.time-stats-panel {
   position: fixed;
   top: 20px;
   right: 20px;
-  width: 260px;
+  width: 280px;
   background: rgba(0, 20, 40, 0.95);
   border: 2px solid #00ffff;
   border-radius: 15px;
@@ -3681,12 +3691,18 @@ export default {
   z-index: 100;
 }
 
-.time-panel h3 {
+.time-stats-panel h3 {
   color: #00ffff;
   font-size: 1.2rem;
   margin-bottom: 15px;
   text-align: center;
   text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.time-stats-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .advance-day-btn {
@@ -3737,6 +3753,43 @@ export default {
   text-align: center;
   color: #cccccc;
   font-size: 0.9rem;
+}
+
+/* 统计信息样式 */
+.stats-info {
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.stat-row:last-child {
+  margin-bottom: 0;
+}
+
+.stat-row .stat-icon {
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.stat-row .stat-label {
+  color: #cccccc;
+  flex: 1;
+}
+
+.stat-row .stat-value {
+  color: #00ffff;
+  font-weight: 600;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
 }
 
 @keyframes blink {
@@ -3852,8 +3905,8 @@ export default {
 
 .hospital-panel {
   position: absolute;
-  bottom: 70px;
-  right: 0;
+  bottom: 120px;
+  right: 20px;
   width: 300px;
   background: rgba(255, 255, 255, 0.95);
   border: 2px solid #ff6b6b;
@@ -3861,6 +3914,7 @@ export default {
   padding: 20px;
   box-shadow: 0 0 30px rgba(255, 107, 107, 0.3);
   backdrop-filter: blur(10px);
+  z-index: 1050;
 }
 
 .hospital-header {
@@ -4251,7 +4305,7 @@ export default {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .time-panel, .achievement-panel {
+  .time-stats-panel, .achievement-panel {
     width: 250px;
     right: 10px;
   }
