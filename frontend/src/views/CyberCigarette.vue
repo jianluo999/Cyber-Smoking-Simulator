@@ -226,6 +226,86 @@
       </div>
     </div>
 
+    <!-- 右下角捐赠按钮 -->
+    <div class="donation-corner">
+      <button class="corner-donation-btn" @click="donate" :disabled="economy.money < 100 || isDead">
+        <span class="donation-icon">🏫</span>
+        <span class="donation-text">捐赠小学</span>
+        <span class="donation-amount">¥100</span>
+      </button>
+    </div>
+
+    <!-- 死亡弹窗 -->
+    <div class="death-overlay" v-if="isDead">
+      <div class="death-modal">
+        <div class="death-content">
+          <div class="death-icon">💀</div>
+          <h2 class="death-title">生命终结</h2>
+          <div class="death-message">
+            <p>由于长期吸烟和过度劳累，您的健康状况已经恶化到了无法挽回的地步。</p>
+            <p>最终寿命：{{ Math.round(health.lifeExpectancy) }}岁</p>
+            <p>总共吸烟：{{ stats.totalSmokes }}支</p>
+            <p>累计健康损害：{{ Math.round(health.smokingDamage) }}点</p>
+          </div>
+          <div class="death-actions">
+            <button class="restart-btn" @click="restartLife">重新开始</button>
+            <button class="reflect-btn" @click="showReflection">反思人生</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 反思弹窗 -->
+    <div class="reflection-overlay" v-if="showReflectionModal">
+      <div class="reflection-modal">
+        <div class="reflection-content">
+          <div class="reflection-icon">🌟</div>
+          <h2 class="reflection-title">人生反思</h2>
+          <div class="reflection-message">
+            <p>吸烟和过度劳累都会损害您的健康，缩短您的寿命。</p>
+            <p>真正的幸福来自健康的生活方式和对他人的关爱。</p>
+            <p>每一次捐赠都是对美好未来的投资，让我们一起传递希望！</p>
+          </div>
+          <div class="reflection-actions">
+            <button class="close-reflection-btn" @click="closeReflection">明白了</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 捐赠小学弹窗 -->
+    <div class="donation-school-overlay" v-if="showDonationModal">
+      <div class="donation-school-modal">
+        <div class="school-scene">
+          <div class="school-building">
+            <div class="school-roof"></div>
+            <div class="school-walls">
+              <div class="school-door"></div>
+              <div class="school-window broken"></div>
+              <div class="school-window cracked"></div>
+              <div class="school-window"></div>
+            </div>
+            <div class="school-foundation"></div>
+          </div>
+          <div class="school-yard">
+            <div class="old-tree"></div>
+            <div class="rusty-fence"></div>
+          </div>
+        </div>
+        <div class="donation-message">
+          <h2 class="donation-title">感谢您的爱心捐赠！</h2>
+          <div class="donation-content">
+            <p>您的100元捐赠将用于改善这所偏远山区小学的教学条件。</p>
+            <p>每一份爱心都能照亮孩子们的求学路。</p>
+            <p>您的善举让世界变得更加美好！</p>
+          </div>
+          <div class="donation-effects">
+            <div class="heart-float" v-for="n in 6" :key="n"></div>
+          </div>
+          <button class="close-donation-btn" @click="closeDonationModal">继续传递希望</button>
+        </div>
+      </div>
+    </div>
 
   </div>
 </template>
@@ -245,6 +325,12 @@ export default {
     const ashProgress = ref(0) // 灰烬进度 0-100%
     const smokingProgress = ref(0)
     const timeRemaining = ref(0)
+    
+    // 死亡和捐赠状态
+    const isDead = ref(false)
+    const isDonating = ref(false)
+    const showReflectionModal = ref(false)
+    const showDonationModal = ref(false)
 
     const stats = reactive({
       todaySmokes: 0,
@@ -381,7 +467,7 @@ export default {
 
     // 打工功能
     const startWork = () => {
-      if (economy.isWorking) return
+      if (economy.isWorking || isDead.value) return
       
       economy.isWorking = true
       economy.workProgress = 0
@@ -394,6 +480,17 @@ export default {
           economy.isWorking = false
           economy.workProgress = 0
           clearInterval(workInterval)
+          
+          // 打工会损害健康和寿命
+          const workDamage = Math.random() * 2 + 1 // 1-3点伤害
+          health.lungHealth = Math.max(0, health.lungHealth - workDamage * 0.5)
+          health.heartHealth = Math.max(0, health.heartHealth - workDamage * 0.8)
+          health.liverHealth = Math.max(0, health.liverHealth - workDamage * 0.3)
+          health.immunity = Math.max(0, health.immunity - workDamage * 0.6)
+          health.lifeExpectancy = Math.max(30, health.lifeExpectancy - workDamage * 0.2)
+          
+          // 检查是否死亡
+          checkDeath()
         }
       }, 100) // 5秒完成一次打工
     }
@@ -410,8 +507,11 @@ export default {
       health.bloodPressure = Math.min(200, health.bloodPressure + baseDamage * 2)
       health.oxygenLevel = Math.max(70, health.oxygenLevel - baseDamage * 1)
       health.immunity = Math.max(0, health.immunity - baseDamage * 1.1)
-      health.lifeExpectancy = Math.max(40, health.lifeExpectancy - baseDamage * 0.3)
+      health.lifeExpectancy = Math.max(30, health.lifeExpectancy - baseDamage * 0.4)
       health.smokingDamage += baseDamage
+      
+      // 检查是否死亡
+      checkDeath()
     }
 
     // 实时健康损害（吸烟过程中持续损害）
@@ -487,9 +587,91 @@ export default {
       return wisp
     }
 
+    // 死亡检查
+    const checkDeath = () => {
+      if (isDead.value) return
+      
+      // 如果寿命低于35岁，触发死亡
+      if (health.lifeExpectancy <= 35) {
+        isDead.value = true
+        isSmoking.value = false // 停止吸烟
+        economy.isWorking = false // 停止工作
+        
+        // 清除所有定时器
+        if (smokeInterval) clearInterval(smokeInterval)
+        if (streamInterval) clearInterval(streamInterval)
+        if (wispInterval) clearInterval(wispInterval)
+      }
+    }
+    
+    // 捐赠功能
+    const donate = () => {
+      if (economy.money < 100 || isDead.value) return
+      
+      economy.money -= 100
+      isDonating.value = true
+      
+      // 捐赠会恢复部分健康和寿命
+      health.lungHealth = Math.min(100, health.lungHealth + 5)
+      health.heartHealth = Math.min(100, health.heartHealth + 5)
+      health.liverHealth = Math.min(100, health.liverHealth + 3)
+      health.immunity = Math.min(100, health.immunity + 7)
+      health.lifeExpectancy = Math.min(85, health.lifeExpectancy + 2)
+      
+      // 显示捐赠小学弹窗
+      showDonationModal.value = true
+      
+      // 希望动画效果
+      setTimeout(() => {
+        isDonating.value = false
+      }, 3000)
+    }
+    
+    // 关闭捐赠弹窗
+    const closeDonationModal = () => {
+      showDonationModal.value = false
+    }
+    
+    // 重新开始生命
+    const restartLife = () => {
+      // 重置所有健康参数
+      health.lungHealth = 100
+      health.heartHealth = 100
+      health.liverHealth = 100
+      health.bloodPressure = 120
+      health.oxygenLevel = 98
+      health.immunity = 100
+      health.lifeExpectancy = 80
+      health.smokingDamage = 0
+      
+      // 重置经济状态
+      economy.money = 100
+      economy.cigaretteStock = 0
+      economy.isWorking = false
+      economy.workProgress = 0
+      
+      // 重置统计
+      stats.todaySmokes = 0
+      stats.totalSmokes = 0
+      
+      // 重置死亡状态
+      isDead.value = false
+      showReflectionModal.value = false
+    }
+    
+    // 显示反思
+    const showReflection = () => {
+      showReflectionModal.value = true
+    }
+    
+    // 关闭反思
+    const closeReflection = () => {
+      showReflectionModal.value = false
+    }
+
     // 开始吸烟
     const smoke = async () => {
-      if (isSmoking.value) return
+      if (isSmoking.value || isDead.value) return
       
       // 检查是否有香烟库存
       if (economy.cigaretteStock <= 0) {
@@ -656,7 +838,10 @@ export default {
       stats,
       economy,
       health,
-
+      isDead,
+      isDonating,
+      showReflectionModal,
+      showDonationModal,
       shop,
       currentTheme,
       themeConfig,
@@ -674,7 +859,13 @@ export default {
       toggleTheme,
       toggleShop,
       buyItem,
-      startWork
+      startWork,
+      checkDeath,
+      donate,
+      restartLife,
+      showReflection,
+      closeReflection,
+      closeDonationModal
     }
   }
 }
@@ -841,6 +1032,280 @@ export default {
   color: #2d2d2d !important;
   font-weight: 600;
   font-size: 1.1rem;
+}
+
+/* 捐赠按钮样式 */
+.donation-section {
+  margin-top: 15px;
+  padding: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.donation-btn {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+  border: 2px solid #ff4444;
+  border-radius: 25px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.donation-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, #ff8e8e, #ffb3b3);
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+  transform: translateY(-2px);
+}
+
+.donation-btn:disabled {
+  background: #666;
+  border-color: #555;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.donation-icon {
+  font-size: 1.2rem;
+  margin-right: 8px;
+  animation: heartbeat 1.5s infinite;
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* 希望粒子动画 */
+.hope-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.hope-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  border-radius: 50%;
+  animation: floatUp 3s ease-out forwards;
+}
+
+.hope-particle:nth-child(1) { left: 20%; animation-delay: 0s; }
+.hope-particle:nth-child(2) { left: 40%; animation-delay: 0.5s; }
+.hope-particle:nth-child(3) { left: 60%; animation-delay: 1s; }
+.hope-particle:nth-child(4) { left: 80%; animation-delay: 1.5s; }
+.hope-particle:nth-child(5) { left: 50%; animation-delay: 2s; }
+
+@keyframes floatUp {
+  0% {
+    bottom: 10%;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    bottom: 90%;
+    opacity: 0;
+    transform: translateY(-20px) scale(0.5);
+  }
+}
+
+/* 死亡弹窗样式 */
+.death-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.death-modal {
+  background: linear-gradient(135deg, #2d2d2d, #1a1a1a);
+  border: 3px solid #ff4444;
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 0 50px rgba(255, 68, 68, 0.8);
+  animation: slideIn 0.5s ease-out;
+}
+
+.death-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  animation: pulse 2s infinite;
+}
+
+.death-title {
+  color: #ff4444;
+  font-size: 2.5rem;
+  margin-bottom: 20px;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.8);
+}
+
+.death-message {
+  color: #ccc;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 30px;
+}
+
+.death-message p {
+  margin: 10px 0;
+}
+
+.death-actions {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.restart-btn, .reflect-btn {
+  padding: 15px 30px;
+  border: 2px solid #00ff00;
+  border-radius: 25px;
+  background: linear-gradient(45deg, #00ff00, #44ff44);
+  color: #000;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.restart-btn:hover, .reflect-btn:hover {
+  background: linear-gradient(45deg, #44ff44, #66ff66);
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+  transform: translateY(-2px);
+}
+
+.reflect-btn {
+  border-color: #ffaa00;
+  background: linear-gradient(45deg, #ffaa00, #ffcc44);
+}
+
+.reflect-btn:hover {
+  background: linear-gradient(45deg, #ffcc44, #ffdd66);
+  box-shadow: 0 0 20px rgba(255, 170, 0, 0.5);
+}
+
+/* 反思弹窗样式 */
+.reflection-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10001;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.reflection-modal {
+  background: linear-gradient(135deg, #f0f8ff, #e6f3ff);
+  border: 3px solid #4169e1;
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 0 50px rgba(65, 105, 225, 0.6);
+  animation: slideIn 0.5s ease-out;
+}
+
+.reflection-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  animation: twinkle 2s infinite;
+}
+
+.reflection-title {
+  color: #4169e1;
+  font-size: 2.5rem;
+  margin-bottom: 20px;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(65, 105, 225, 0.5);
+}
+
+.reflection-message {
+  color: #2d2d2d;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 30px;
+}
+
+.reflection-message p {
+  margin: 10px 0;
+}
+
+.close-reflection-btn {
+  padding: 15px 30px;
+  border: 2px solid #4169e1;
+  border-radius: 25px;
+  background: linear-gradient(45deg, #4169e1, #6495ed);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.close-reflection-btn:hover {
+  background: linear-gradient(45deg, #6495ed, #87ceeb);
+  box-shadow: 0 0 20px rgba(65, 105, 225, 0.5);
+  transform: translateY(-2px);
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { 
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes twinkle {
+  0%, 100% { 
+    transform: rotate(0deg) scale(1);
+    opacity: 0.8;
+  }
+  50% { 
+    transform: rotate(180deg) scale(1.2);
+    opacity: 1;
+  }
 }
 
 .traditional-footer .footer-subtext {
@@ -2260,6 +2725,400 @@ export default {
     left: auto;
     transform: none;
     margin-top: 30px;
+  }
+}
+
+/* 右下角捐赠按钮 */
+.donation-corner {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.corner-donation-btn {
+  background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+  border: 2px solid #ff4444;
+  border-radius: 20px;
+  padding: 15px 20px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.corner-donation-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, #ff8e8e, #ffb3b3);
+  box-shadow: 0 6px 20px rgba(255, 68, 68, 0.5);
+  transform: translateY(-2px);
+}
+
+.corner-donation-btn:disabled {
+  background: #666;
+  border-color: #555;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.corner-donation-btn .donation-icon {
+  font-size: 1.5rem;
+  animation: bounce 2s infinite;
+}
+
+.corner-donation-btn .donation-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.corner-donation-btn .donation-amount {
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* 捐赠小学弹窗 */
+.donation-school-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(135, 206, 235, 0.8), rgba(255, 182, 193, 0.6));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  animation: fadeIn 0.8s ease-in-out;
+}
+
+.donation-school-modal {
+  background: linear-gradient(135deg, #f0f8ff, #fff8dc);
+  border: 3px solid #8b4513;
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 700px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 0 50px rgba(139, 69, 19, 0.6);
+  animation: slideInUp 0.8s ease-out;
+}
+
+/* 小学场景 */
+.school-scene {
+  position: relative;
+  height: 300px;
+  background: linear-gradient(to bottom, #87ceeb 0%, #98fb98 40%, #8fbc8f 100%);
+  border-radius: 15px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.school-building {
+  position: absolute;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 150px;
+}
+
+.school-roof {
+  position: absolute;
+  top: -20px;
+  left: -10px;
+  width: 220px;
+  height: 40px;
+  background: linear-gradient(45deg, #8b4513, #a0522d);
+  border-radius: 10px 10px 0 0;
+  transform: perspective(100px) rotateX(20deg);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.school-roof::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 10px;
+  width: 15px;
+  height: 25px;
+  background: #654321;
+  border-radius: 3px;
+}
+
+.school-walls {
+  position: relative;
+  width: 100%;
+  height: 130px;
+  background: linear-gradient(to bottom, #ddd 0%, #ccc 50%, #bbb 100%);
+  border: 2px solid #999;
+  border-radius: 5px;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+}
+
+.school-walls::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 180px;
+  height: 110px;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 10px,
+    rgba(0, 0, 0, 0.1) 10px,
+    rgba(0, 0, 0, 0.1) 11px
+  );
+}
+
+.school-door {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 60px;
+  background: linear-gradient(to bottom, #8b4513, #654321);
+  border-radius: 5px 5px 0 0;
+  border: 1px solid #5d4037;
+}
+
+.school-door::before {
+  content: '';
+  position: absolute;
+  top: 25px;
+  right: 3px;
+  width: 3px;
+  height: 3px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.school-window {
+  position: absolute;
+  width: 25px;
+  height: 25px;
+  background: linear-gradient(45deg, #87ceeb, #b0e0e6);
+  border: 2px solid #696969;
+  border-radius: 3px;
+}
+
+.school-window:nth-child(2) {
+  top: 30px;
+  left: 30px;
+}
+
+.school-window:nth-child(3) {
+  top: 30px;
+  right: 30px;
+}
+
+.school-window:nth-child(4) {
+  top: 70px;
+  left: 30px;
+}
+
+.school-window.broken {
+  background: linear-gradient(45deg, #555, #333);
+  border-color: #333;
+}
+
+.school-window.broken::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 15px;
+  height: 15px;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 2px,
+    #222 2px,
+    #222 3px
+  );
+}
+
+.school-window.cracked::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12px;
+  width: 1px;
+  height: 100%;
+  background: #333;
+}
+
+.school-foundation {
+  position: absolute;
+  bottom: -10px;
+  left: -5px;
+  width: 210px;
+  height: 20px;
+  background: linear-gradient(to bottom, #8b4513, #654321);
+  border-radius: 0 0 10px 10px;
+}
+
+.school-yard {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50px;
+  background: linear-gradient(to bottom, #8fbc8f, #556b2f);
+}
+
+.old-tree {
+  position: absolute;
+  bottom: 0;
+  left: 50px;
+  width: 15px;
+  height: 40px;
+  background: linear-gradient(to bottom, #8b4513, #654321);
+  border-radius: 50% 50% 0 0;
+}
+
+.old-tree::before {
+  content: '';
+  position: absolute;
+  top: -15px;
+  left: -10px;
+  width: 35px;
+  height: 25px;
+  background: radial-gradient(circle, #228b22 30%, #006400 70%);
+  border-radius: 50%;
+  opacity: 0.8;
+}
+
+.rusty-fence {
+  position: absolute;
+  bottom: 0;
+  right: 30px;
+  width: 80px;
+  height: 25px;
+  background: repeating-linear-gradient(
+    90deg,
+    #8b4513,
+    #8b4513 3px,
+    transparent 3px,
+    transparent 8px
+  );
+  border-bottom: 2px solid #654321;
+}
+
+.rusty-fence::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #654321;
+}
+
+/* 感谢信息 */
+.donation-title {
+  color: #ff6b6b;
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 15px;
+  text-shadow: 2px 2px 4px rgba(255, 107, 107, 0.3);
+}
+
+.donation-content {
+  color: #2d2d2d;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.donation-content p {
+  margin: 10px 0;
+}
+
+.donation-effects {
+  position: relative;
+  height: 60px;
+  margin-bottom: 20px;
+}
+
+.heart-float {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: #ff6b6b;
+  border-radius: 50%;
+  animation: heartFloat 3s infinite ease-in-out;
+}
+
+.heart-float::before {
+  content: '❤️';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 16px;
+}
+
+.heart-float:nth-child(1) { left: 10%; animation-delay: 0s; }
+.heart-float:nth-child(2) { left: 25%; animation-delay: 0.5s; }
+.heart-float:nth-child(3) { left: 40%; animation-delay: 1s; }
+.heart-float:nth-child(4) { left: 55%; animation-delay: 1.5s; }
+.heart-float:nth-child(5) { left: 70%; animation-delay: 2s; }
+.heart-float:nth-child(6) { left: 85%; animation-delay: 2.5s; }
+
+@keyframes heartFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-30px) scale(1.2);
+    opacity: 1;
+  }
+}
+
+.close-donation-btn {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(45deg, #4169e1, #6495ed);
+  border: 2px solid #4169e1;
+  border-radius: 25px;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.close-donation-btn:hover {
+  background: linear-gradient(45deg, #6495ed, #87ceeb);
+  box-shadow: 0 0 20px rgba(65, 105, 225, 0.5);
+  transform: translateY(-2px);
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 </style> 
