@@ -272,98 +272,103 @@
       </div>
     </div>
 
-
-
-    <!-- 右下角医院 -->
-    <div class="hospital-corner">
-      <button class="corner-hospital-btn" @click="toggleHospital" :disabled="isDead">
-        <span class="hospital-icon">🏥</span>
-        <span class="hospital-text">医院</span>
-        <span class="hospital-cost">¥200</span>
-      </button>
+    <!-- 右下角按钮区域 -->
+    <div class="bottom-right-actions">
+      <!-- 医院按钮 -->
+      <div class="hospital-corner">
+        <button class="corner-hospital-btn" @click="toggleHospital" :disabled="isDead">
+          <span class="hospital-icon">🏥</span>
+          <span class="hospital-text">医院</span>
+        </button>
+      </div>
       
-      <!-- 医院面板 -->
-      <div class="hospital-panel" v-if="hospitalSystem.isHospitalOpen">
-        <div class="hospital-header">
-          <h3>🏥 医院治疗</h3>
-          <button @click="toggleHospital" class="close-btn">×</button>
-        </div>
-        <div class="hospital-content">
-          <div class="hospital-tabs">
-            <button class="tab-btn" :class="{ active: hospitalTab === 'treatment' }" @click="hospitalTab = 'treatment'">治疗服务</button>
-            <button class="tab-btn" :class="{ active: hospitalTab === 'volunteer' }" @click="hospitalTab = 'volunteer'">义工服务</button>
-          </div>
-          
-          <!-- 治疗服务选项卡 -->
-          <div v-if="hospitalTab === 'treatment'">
-            <div class="hospital-info">
-              <div class="treatment-cost">治疗费用: ¥200</div>
-              <div class="hospital-visits">已就医: {{ hospitalSystem.hospitalVisits }}次</div>
-            </div>
-            <div class="hospital-services">
-              <div class="service-item">
-                <span class="service-icon">🫁</span>
-                <span class="service-text">肺部治疗 +30%</span>
-              </div>
-              <div class="service-item">
-                <span class="service-icon">❤️</span>
-                <span class="service-text">心脏治疗 +30%</span>
-              </div>
-              <div class="service-item">
-                <span class="service-icon">🛡️</span>
-                <span class="service-text">免疫力提升 +35%</span>
-              </div>
-            </div>
-            <button @click="visitHospital" 
-                    :disabled="economy.money < 200"
-                    class="hospital-treatment-btn">
-              {{ economy.money < 200 ? '金钱不足' : '接受治疗' }}
-            </button>
-          </div>
-          
-          <!-- 义工服务选项卡 -->
-          <div v-if="hospitalTab === 'volunteer'">
-            <div class="volunteer-info">
-              <div class="volunteer-description">无报酬 | 提升健康</div>
-              <div class="volunteer-hours">义工时间: {{ hospitalSystem.volunteerHours }}小时</div>
-            </div>
-            <div class="volunteer-services">
-              <div class="service-item">
-                <span class="service-icon">🫁</span>
-                <span class="service-text">肺部健康 +15%</span>
-              </div>
-              <div class="service-item">
-                <span class="service-icon">❤️</span>
-                <span class="service-text">心脏健康 +15%</span>
-              </div>
-              <div class="service-item">
-                <span class="service-icon">🛡️</span>
-                <span class="service-text">免疫力 +20%</span>
-              </div>
-            </div>
-            <div class="volunteer-progress" v-if="hospitalSystem.isVolunteerWorking">
-              <div class="progress-bar">
-                <div class="progress-fill" :style="{ width: hospitalSystem.volunteerProgress + '%' }"></div>
-              </div>
-              <span>义工服务中... {{ hospitalSystem.volunteerProgress }}%</span>
-            </div>
-            <button @click="startVolunteer" 
-                    :disabled="hospitalSystem.isVolunteerWorking || shouldGoToHospital()"
-                    class="volunteer-btn">
-              {{ hospitalSystem.isVolunteerWorking ? '义工服务中...' : (shouldGoToHospital() ? '健康太差，先治疗' : '开始义工') }}
-            </button>
-          </div>
-        </div>
+      <!-- 捐赠按钮 -->
+      <div class="donation-corner">
+        <button class="corner-donation-btn" @click="donate" :disabled="economy.money < 100 || isDead">
+          <span class="donation-icon">🏫</span>
+          <span class="donation-text">捐赠小学</span>
+          <span class="donation-amount">¥100</span>
+        </button>
       </div>
     </div>
 
-    <!-- 右下角捐赠按钮 -->
-    <div class="donation-corner donation-school">
-      <button class="corner-donation-btn" @click="donate" :disabled="economy.money < 100 || isDead">
-        <span class="donation-icon">🏫</span>
-        <span class="donation-text">捐赠小学</span>
-        <span class="donation-amount">¥100</span>
-      </button>
+    <!-- 医院面板 -->
+    <div class="hospital-panel" v-if="hospitalSystem.isHospitalOpen">
+      <div class="hospital-header">
+        <h3>🏥 医院</h3>
+        <button class="close-btn" @click="toggleHospital">×</button>
+      </div>
+      
+      <div class="hospital-tabs">
+        <button class="tab-btn" :class="{ active: hospitalTab === 'treatment' }" @click="hospitalTab = 'treatment'">
+          治疗
+        </button>
+        <button class="tab-btn" :class="{ active: hospitalTab === 'volunteer' }" @click="hospitalTab = 'volunteer'">
+          义工
+        </button>
+      </div>
+      
+      <div class="hospital-content">
+        <!-- 治疗选项卡 -->
+        <div v-if="hospitalTab === 'treatment'">
+          <div class="hospital-info">
+            <span>费用: ¥200</span>
+            <span>就诊记录: {{ hospitalSystem.hospitalVisits }}次</span>
+          </div>
+          <div class="hospital-services">
+            <div class="service-item">
+              <span class="service-icon">🫁</span>
+              <span class="service-text">肺部健康 +30%</span>
+            </div>
+            <div class="service-item">
+              <span class="service-icon">❤️</span>
+              <span class="service-text">心脏健康 +30%</span>
+            </div>
+            <div class="service-item">
+              <span class="service-icon">🛡️</span>
+              <span class="service-text">免疫力 +35%</span>
+            </div>
+          </div>
+          <button @click="visitHospital" 
+                  :disabled="economy.money < 200 || isDead" 
+                  class="hospital-treatment-btn">
+            {{ economy.money < 200 ? '金钱不足' : '接受治疗' }}
+          </button>
+        </div>
+        
+        <!-- 义工服务选项卡 -->
+        <div v-if="hospitalTab === 'volunteer'">
+          <div class="volunteer-info">
+            <div class="volunteer-description">无报酬 | 提升健康</div>
+            <div class="volunteer-hours">义工时间: {{ hospitalSystem.volunteerHours }}小时</div>
+          </div>
+          <div class="volunteer-services">
+            <div class="service-item">
+              <span class="service-icon">🫁</span>
+              <span class="service-text">肺部健康 +15%</span>
+            </div>
+            <div class="service-item">
+              <span class="service-icon">❤️</span>
+              <span class="service-text">心脏健康 +15%</span>
+            </div>
+            <div class="service-item">
+              <span class="service-icon">🛡️</span>
+              <span class="service-text">免疫力 +20%</span>
+            </div>
+          </div>
+          <div class="volunteer-progress" v-if="hospitalSystem.isVolunteerWorking">
+            <div class="progress-bar">
+              <div class="progress-fill" :style="{ width: hospitalSystem.volunteerProgress + '%' }"></div>
+            </div>
+            <span>义工服务中... {{ hospitalSystem.volunteerProgress }}%</span>
+          </div>
+          <button @click="startVolunteer" 
+                  :disabled="hospitalSystem.isVolunteerWorking || shouldGoToHospital()"
+                  class="volunteer-btn">
+            {{ hospitalSystem.isVolunteerWorking ? '义工服务中...' : (shouldGoToHospital() ? '健康太差，先治疗' : '开始义工') }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- 死亡弹窗 -->
@@ -3217,13 +3222,7 @@ export default {
   }
 }
 
-/* 右下角捐赠按钮 */
-.donation-corner {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 1000;
-}
+
 
 .corner-donation-btn {
   background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
@@ -3274,6 +3273,11 @@ export default {
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 /* 捐赠小学弹窗 */
@@ -3859,48 +3863,67 @@ export default {
   background: rgba(255, 215, 0, 0.1);
 }
 
-/* 医院系统样式 */
-.hospital-corner {
+/* 右下角按钮区域 */
+.bottom-right-actions {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  z-index: 100;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: flex-end;
+}
+
+/* 医院按钮 */
+.hospital-corner {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .corner-hospital-btn {
   background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
   border: 2px solid #ff6b6b;
-  border-radius: 15px;
+  border-radius: 20px;
   color: white;
   padding: 15px 20px;
   font-size: 1rem;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
 }
 
-.corner-hospital-btn:hover {
+.corner-hospital-btn:hover:not(:disabled) {
   background: linear-gradient(45deg, #ff8e8e, #ffb3b3);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
 }
 
+.corner-hospital-btn:disabled {
+  background: #666;
+  border-color: #555;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .hospital-icon {
   font-size: 1.5rem;
+  animation: pulse 2s infinite;
 }
 
 .hospital-text {
   font-weight: 600;
+  font-size: 0.9rem;
 }
 
-.hospital-cost {
-  font-size: 0.9rem;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 2px 6px;
-  border-radius: 8px;
+/* 捐赠按钮 */
+.donation-corner {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .hospital-panel {
