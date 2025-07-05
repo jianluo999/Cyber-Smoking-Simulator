@@ -606,7 +606,7 @@ export default {
     const timeRemaining = ref(5)
 
     // 吸烟时长
-    let smokingDuration = 15 // 增加到15秒
+    let smokingDuration = 5 // 吸烟时长改为5秒
 
     // 加载状态
     const isDataLoaded = ref(false)
@@ -1279,6 +1279,9 @@ export default {
         })
         return
       }
+      
+      // 自动切换到健康状况面板
+      currentTab.value = 'health'
       
       // 消耗一支香烟
       economy.cigaretteStock -= 1
